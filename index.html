@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>PAN AI Trade Bridge</title>
+<style>
+body{
+font-family:Arial;
+padding:30px;
+background:#111;
+color:white;
+}
+button{
+padding:15px;
+font-size:18px;
+}
+#result{
+margin-top:20px;
+font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>PAN AI Trade Bridge</h1>
+
+<button onclick="analyze()">Analyze NIFTY</button>
+
+<pre id="result">Waiting...</pre>
+
+<script>
+
+async function analyze(){
+
+let r = await fetch(
+"https://pan-ai-trade-bridge.onrender.com/analyze"
+);
+
+let data = await r.json();
+
+document.getElementById("result").innerHTML =
+JSON.stringify(data,null,2);
+
+}
+
+</script>
+
+</body>
+</html>
