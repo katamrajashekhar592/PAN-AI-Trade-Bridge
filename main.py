@@ -8,59 +8,31 @@ import time
 app = FastAPI()
 
 
+
 @app.get("/")
 def home():
     return FileResponse("index.html")
 
 
 
-# -----------------------------
-# LIVE NIFTY PRICE
-# -----------------------------
-
 def get_nifty_price():
 
-    try:
+    data = yf.Ticker("^NSEI").history(period="5d")
 
-        data = yf.Ticker("^NSEI").history(
-            period="1d",
-            interval="1m"
-        )
-
-        return float(
-            data["Close"].iloc[-1]
-        )
-
-
-    except Exception as e:
-
-        print("NIFTY ERROR:", e)
-
-        return 0
+    return float(data["Close"].iloc[-1])
 
 
 
-
-
-# -----------------------------
-# ATM STRIKE
-# -----------------------------
 
 def get_atm(price):
 
-    return int(
-        round(price / 50) * 50
-    )
+    return round(price / 50) * 50
 
 
 
-
-
-# -----------------------------
-# NSE OPTION CHAIN
-# -----------------------------
 
 def get_option_chain():
+
 
     try:
 
@@ -70,26 +42,25 @@ def get_option_chain():
         headers = {
 
             "User-Agent":
-            "Mozilla/5.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
 
             "Accept":
-            "application/json",
+            "application/json,text/plain,*/*",
 
             "Referer":
-            "https://www.nseindia.com/option-chain"
+            "https://www.nseindia.com/option-chain",
+
+            "Connection":
+            "keep-alive"
 
         }
 
 
 
         session.get(
-
             "https://www.nseindia.com",
-
             headers=headers,
-
             timeout=10
-
         )
 
 
@@ -98,51 +69,31 @@ def get_option_chain():
 
 
         url = (
-
             "https://www.nseindia.com/api/"
             "option-chain-indices?symbol=NIFTY"
-
         )
-
 
 
         response = session.get(
-
             url,
-
             headers=headers,
-
             timeout=10
-
         )
 
 
+        if response.status_code == 200:
 
-        print(
-            "NSE STATUS:",
-            response.status_code
-        )
+            return response.json()
 
 
 
-        if response.status_code != 200:
-
-            return None
-
-
-
-        return response.json()
+        return None
 
 
 
     except Exception as e:
 
-
-        print(
-            "OPTION ERROR:",
-            e
-        )
-
+        print("NSE ERROR:",e)
 
         return None
 
@@ -150,31 +101,12 @@ def get_option_chain():
 
 
 
-# -----------------------------
-# ANALYSIS API
-# -----------------------------
 
 @app.get("/analyze")
 def analyze():
 
 
-
     price = get_nifty_price()
-
-
-
-    if price == 0:
-
-
-        return {
-
-            "error":
-            "NIFTY price unavailable"
-
-        }
-
-
-
 
 
     atm = get_atm(price)
@@ -189,129 +121,77 @@ def analyze():
 
 
 
-
-
     chain = get_option_chain()
 
 
 
-    try:
+    if chain:
 
 
-        if chain:
+        try:
 
 
             records = (
-
                 chain
-
-                .get(
-                    "records",
-                    {}
-                )
-
-                .get(
-                    "data",
-                    []
-                )
-
+                .get("records", {})
+                .get("data", [])
             )
-
-
-
-            print(
-                "OPTION RECORDS:",
-                len(records)
-            )
-
 
 
 
             for item in records:
 
 
-
                 if item.get("strikePrice") == atm:
 
 
-
-                    if "CE" in item:
+                    if item.get("CE"):
 
 
                         ce_price = item["CE"].get(
-
-                            "lastPrice",
-                            0
-
+                            "lastPrice",0
                         )
 
 
                         ce_oi = item["CE"].get(
-
-                            "openInterest",
-                            0
-
+                            "openInterest",0
                         )
 
 
 
-
-                    if "PE" in item:
+                    if item.get("PE"):
 
 
                         pe_price = item["PE"].get(
-
-                            "lastPrice",
-                            0
-
+                            "lastPrice",0
                         )
 
 
                         pe_oi = item["PE"].get(
-
-                            "openInterest",
-                            0
-
+                            "openInterest",0
                         )
-
 
 
                     break
 
 
 
+        except Exception as e:
 
-
-    except Exception as e:
-
-
-        print(
-            "READ ERROR:",
-            e
-        )
+            print(e)
 
 
 
 
-
-
-
-    # PCR CALCULATION
 
     if ce_oi > 0:
 
-
         pcr = round(
-
             pe_oi / ce_oi,
-
             2
-
         )
 
-
     else:
-
 
         pcr = 0
 
@@ -319,8 +199,8 @@ def analyze():
 
 
 
+    # AI LOGIC
 
-    # SIGNAL LOGIC FIXED
 
     if ce_oi == 0 and pe_oi == 0:
 
@@ -360,104 +240,69 @@ def analyze():
 
 
 
-
-
     return {
 
 
-        "index":
-
-        "NIFTY 50",
+        "index":"NIFTY 50",
 
 
-
-        "price":
-
-        round(price,2),
-
+        "price":round(price,2),
 
 
 
         "option_chain":{
 
 
-            "ATM":
-
-            atm,
-
+            "ATM":atm,
 
 
             "CE":{
 
 
-                "price":
+                "price":ce_price,
 
-                ce_price,
+                "OI":ce_oi,
 
-
-                "OI":
-
-                ce_oi
-
+                "trend":
+                "Bullish" if ce_oi > pe_oi else "Weak"
 
             },
-
 
 
             "PE":{
 
 
-                "price":
+                "price":pe_price,
 
-                pe_price,
+                "OI":pe_oi,
 
-
-                "OI":
-
-                pe_oi
-
+                "trend":
+                "Bearish" if pe_oi > ce_oi else "Weak"
 
             },
 
 
 
-            "PCR":
-
-            pcr
-
+            "PCR":pcr
 
         },
 
 
 
-
-        "signal":
-
-        signal,
+        "signal":signal,
 
 
-
-        "confidence":
-
-        confidence,
+        "confidence":confidence,
 
 
-
-        "entry":
-
-        round(price,2),
+        "entry":round(price,2),
 
 
-
-        "stoploss":
-
-        round(price-80,2),
+        "stoploss":round(price-80,2),
 
 
+        "target":round(price+120,2)
 
-        "target":
-
-        round(price+120,2)
 
 
     }
