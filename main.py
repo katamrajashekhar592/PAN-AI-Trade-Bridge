@@ -15,48 +15,76 @@ def home():
 
 
 
-def atm_strike(price):
 
-    return round(price / 50) * 50
+
+def get_nifty_price():
+
+    data = yf.Ticker("^NSEI").history(period="2d")
+
+    return float(
+        data["Close"].iloc[-1]
+    )
+
+
+
+
+
+def get_atm(price):
+
+    return round(price/50)*50
+
 
 
 
 
 def get_option_chain():
 
-    url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
-
-
-    headers = {
-
-        "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-
-        "Accept":
-        "application/json",
-
-        "Accept-Language":
-        "en-US,en;q=0.9",
-
-        "Referer":
-        "https://www.nseindia.com/option-chain"
-
-    }
-
 
     try:
+
 
         session = requests.Session()
 
 
+        headers = {
+
+            "User-Agent":
+            "Mozilla/5.0",
+
+            "Accept":
+            "application/json",
+
+            "Accept-Encoding":
+            "gzip, deflate, br",
+
+            "Connection":
+            "keep-alive"
+
+        }
+
+
+
         session.get(
+
             "https://www.nseindia.com",
+
             headers=headers,
+
             timeout=10
+
         )
 
 
-        time.sleep(2)
+        time.sleep(1)
+
+
+
+        url = (
+
+        "https://www.nseindia.com/api/"
+        "option-chain-indices?symbol=NIFTY"
+
+        )
 
 
 
@@ -72,29 +100,14 @@ def get_option_chain():
 
 
 
-        if response.status_code == 200:
-
-            return response.json()
-
-
-
-        print(
-            "NSE STATUS:",
-            response.status_code
-        )
-
-
-        return None
+        return response.json()
 
 
 
     except Exception as e:
 
 
-        print(
-            "OPTION ERROR:",
-            e
-        )
+        print(e)
 
 
         return None
@@ -110,30 +123,10 @@ def analyze():
 
 
 
-    nifty = yf.Ticker("^NSEI")
+    price = get_nifty_price()
 
 
-    history = nifty.history(
-        period="5d"
-    )
-
-
-    price = float(
-        history["Close"].iloc[-1]
-    )
-
-
-    previous = float(
-        history["Close"].iloc[-2]
-    )
-
-
-
-    change = price - previous
-
-
-
-    atm = atm_strike(price)
+    atm = get_atm(price)
 
 
 
@@ -142,15 +135,6 @@ def analyze():
 
     ce_oi = 0
     pe_oi = 0
-
-
-
-    ce_trend = "No Data"
-    pe_trend = "No Data"
-
-
-    pcr = 0
-
 
 
 
@@ -164,12 +148,14 @@ def analyze():
         if chain:
 
 
-            records = chain.get(
-                "records",
-                {}
-            ).get(
-                "data",
-                []
+            records = (
+
+            chain
+
+            .get("records",{})
+
+            .get("data",[])
+
             )
 
 
@@ -178,26 +164,28 @@ def analyze():
 
 
 
-                if item.get("strikePrice") == atm:
+                if item.get("strikePrice")==atm:
 
 
 
                     if "CE" in item:
 
 
-                        ce = item["CE"]
 
+                        ce_price = item["CE"].get(
 
-                        ce_price = ce.get(
-                            "lastPrice",
-                            0
+                        "lastPrice",0
+
                         )
 
 
-                        ce_oi = ce.get(
-                            "openInterest",
-                            0
+
+                        ce_oi = item["CE"].get(
+
+                        "openInterest",0
+
                         )
+
 
 
 
@@ -205,52 +193,24 @@ def analyze():
                     if "PE" in item:
 
 
-                        pe = item["PE"]
 
+                        pe_price = item["PE"].get(
 
-                        pe_price = pe.get(
-                            "lastPrice",
-                            0
+                        "lastPrice",0
+
                         )
 
 
-                        pe_oi = pe.get(
-                            "openInterest",
-                            0
+
+                        pe_oi = item["PE"].get(
+
+                        "openInterest",0
+
                         )
 
 
 
                     break
-
-
-
-
-
-
-            if ce_oi > pe_oi:
-
-
-                ce_trend = "CE Strong"
-
-
-
-            elif pe_oi > ce_oi:
-
-
-                pe_trend = "PE Strong"
-
-
-
-
-
-            if ce_oi > 0:
-
-
-                pcr = round(
-                    pe_oi / ce_oi,
-                    2
-                )
 
 
 
@@ -265,36 +225,52 @@ def analyze():
 
 
 
-
-    if change > 0 and pcr < 1:
-
+    if ce_oi > 0:
 
 
-        signal = "BUY CE"
+        pcr = round(
 
-        confidence = 75
+        pe_oi/ce_oi,
+
+        2
+
+        )
+
+    else:
+
+
+        pcr = 0
 
 
 
 
-    elif change < 0 and pcr > 1:
 
 
 
-        signal = "BUY PE"
+    if price > 0 and pcr < 1:
 
-        confidence = 75
 
+        signal="BUY CE"
+
+        confidence="70%"
+
+
+
+    elif pcr > 1:
+
+
+        signal="BUY PE"
+
+        confidence="70%"
 
 
 
     else:
 
 
+        signal="WAIT"
 
-        signal = "WAIT"
-
-        confidence = 50
+        confidence="50%"
 
 
 
@@ -305,88 +281,65 @@ def analyze():
     return {
 
 
-        "index":
-        "NIFTY 50",
+
+    "index":"NIFTY 50",
 
 
 
-        "price":
-        round(price,2),
+    "price":round(price,2),
 
 
 
-        "option_chain":{
+
+    "option_chain":{
 
 
-            "ATM":
-            atm,
-
-
-
-            "CE":{
-
-
-                "price":
-                ce_price,
-
-
-                "OI":
-                ce_oi,
-
-
-                "trend":
-                ce_trend
-
-            },
+        "ATM":atm,
 
 
 
-            "PE":{
+        "CE":{
 
 
-                "price":
-                pe_price,
+        "price":ce_price,
 
-
-                "OI":
-                pe_oi,
-
-
-                "trend":
-                pe_trend
-
-            },
-
-
-
-            "PCR":
-            pcr
+        "OI":ce_oi
 
         },
 
 
 
-        "signal":
-        signal,
+        "PE":{
+
+
+        "price":pe_price,
+
+        "OI":pe_oi
+
+        },
+
+
+        "PCR":pcr
+
+    },
 
 
 
-        "confidence":
-        str(confidence)+"%",
+    "signal":signal,
+
+
+    "confidence":confidence,
 
 
 
-        "entry":
-        round(price,2),
+    "entry":round(price,2),
 
 
-
-        "stoploss":
-        round(price-80,2),
+    "stoploss":round(price-80,2),
 
 
+    "target":round(price+120,2)
 
-        "target":
-        round(price+120,2)
+
 
     }
