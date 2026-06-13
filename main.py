@@ -15,74 +15,60 @@ def analyze():
 
     data = yf.Ticker("^NSEI")
 
-    df = data.history(period="1mo")
+    price_data = data.history(period="5d")
 
-    last = float(df["Close"].iloc[-1])
-    prev = float(df["Close"].iloc[-2])
+    last = float(price_data["Close"].iloc[-1])
+    previous = float(price_data["Close"].iloc[-2])
 
+    change = last - previous
 
-    # EMA calculation
-    ema20 = df["Close"].ewm(span=20).mean().iloc[-1]
-    ema50 = df["Close"].ewm(span=50).mean().iloc[-1]
-
-
-    # RSI calculation
-    delta = df["Close"].diff()
-
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-
-    avg_gain = gain.mean()
-    avg_loss = loss.mean()
-
-    rsi = 100 - (100 / (1 + (avg_gain / avg_loss)))
+    percent = (change / previous) * 100
 
 
-    score = 50
-
-
-    if last > ema20:
-        score += 20
-
-    if ema20 > ema50:
-        score += 20
-
-    if rsi < 70:
-        score += 10
-
-
-    if score >= 70:
+    if change > 0:
         trend = "Bullish trend 📈"
         action = "BUY bias - momentum positive"
+        confidence = 70
 
-    elif score <= 40:
+    elif change < 0:
         trend = "Bearish trend 📉"
         action = "SELL bias - weakness visible"
+        confidence = 65
 
     else:
         trend = "Sideways market"
         action = "WAIT - no clear direction"
+        confidence = 50
+
+
+    support = last - 50
+    resistance = last + 50
+
+    stoploss = last - 80
+    target = last + 120
 
 
     return {
 
-        "index":"NIFTY50",
-        "price":round(last,2),
+        "index": "NIFTY50",
 
-        "trend":trend,
+        "price": round(last,2),
 
-        "ema20":round(ema20,2),
-        "ema50":round(ema50,2),
+        "change": round(change,2),
 
-        "rsi":round(rsi,2),
+        "percent": round(percent,2),
 
-        "confidence":score,
+        "trend": trend,
 
-        "support":round(last-50,2),
-        "resistance":round(last+50,2),
+        "support": round(support,2),
 
-        "stop_loss":round(last-80,2),
-        "target":round(last+120,2),
+        "resistance": round(resistance,2),
 
-        "action":action
+        "confidence": str(confidence)+"%",
+
+        "stoploss": round(stoploss,2),
+
+        "target": round(target,2),
+
+        "action": action
     }
