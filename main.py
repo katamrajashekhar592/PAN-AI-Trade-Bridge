@@ -3,15 +3,14 @@ from datetime import datetime
 
 app = FastAPI(
     title="PAN AI Trade Bridge",
-    description="AI based NIFTY50 market analysis API",
-    version="1.0"
+    description="AI powered NIFTY50 analysis API"
 )
 
 
 @app.get("/")
 def home():
     return {
-        "status": "PAN AI Trade Bridge is running",
+        "status": "PAN AI Trade Bridge running",
         "time": datetime.now().isoformat()
     }
 
@@ -19,23 +18,67 @@ def home():
 @app.get("/analyze")
 def analyze():
 
-    # Demo AI analysis engine
-    # Later we will connect live NIFTY data here
+    # Current market data (later we connect live NSE feed)
+    price = 23622.90
+    high = 23645.35
+    low = 23313.90
 
-    nifty_analysis = {
+    # Simple AI logic
+    if price > (high + low) / 2:
+        trend = "Bullish"
+        action = "BUY on confirmation"
+        confidence = 72
+    else:
+        trend = "Bearish"
+        action = "SELL on confirmation"
+        confidence = 68
+
+
+    support = low
+    resistance = high
+
+    stop_loss = round(price - 100, 2)
+    target1 = round(price + 150, 2)
+    target2 = round(price + 300, 2)
+
+
+    return {
+
         "index": "NIFTY50",
-        "trend": "Analyzing",
-        "market_view": "AI engine connected",
-        "support": [
-            "Will calculate support levels"
-        ],
-        "resistance": [
-            "Will calculate resistance levels"
-        ],
-        "global_cues": "Pending live market connection",
-        "action": "WAIT",
-        "risk": "Manage with stop loss",
-        "timestamp": datetime.now().isoformat()
-    }
 
-    return nifty_analysis
+        "market_data": {
+            "price": price,
+            "day_high": high,
+            "day_low": low
+        },
+
+        "AI_analysis": {
+
+            "trend": trend,
+
+            "action": action,
+
+            "confidence": str(confidence) + "%",
+
+            "support": support,
+
+            "resistance": resistance,
+
+            "trade_plan": {
+
+                "entry": price,
+
+                "stop_loss": stop_loss,
+
+                "target_1": target1,
+
+                "target_2": target2
+            }
+        },
+
+        "risk_note":
+        "Use proper risk management. AI output is for analysis only.",
+
+        "updated":
+        datetime.now().isoformat()
+    }
