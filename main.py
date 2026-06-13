@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 import yfinance as yf
-
+import pandas as pd
 
 app = FastAPI()
 
@@ -16,88 +16,88 @@ def analyze():
 
     data = yf.Ticker("^NSEI")
 
-    price_data = data.history(period="3mo")
+    df = data.history(period="3mo")
 
-    close = price_data["Close"]
+
+    close = df["Close"]
 
 
     last = float(close.iloc[-1])
-
     previous = float(close.iloc[-2])
 
 
     change = last - previous
-
     percent = (change / previous) * 100
-
 
 
     # Moving averages
 
-    ma20 = float(close.rolling(20).mean().iloc[-1])
-
-    ma50 = float(close.rolling(50).mean().iloc[-1])
-
+    ma20 = close.rolling(20).mean().iloc[-1]
+    ma50 = close.rolling(50).mean().iloc[-1]
 
 
     # RSI
 
     delta = close.diff()
 
-    gain = delta.where(delta > 0,0)
+    gain = delta.where(delta > 0, 0)
 
-    loss = -delta.where(delta < 0,0)
+    loss = -delta.where(delta < 0, 0)
 
 
     avg_gain = gain.rolling(14).mean()
-
     avg_loss = loss.rolling(14).mean()
 
 
     rs = avg_gain / avg_loss
 
+    rsi = 100 - (100/(1+rs))
 
-    rsi = float((100 - (100/(1+rs))).iloc[-1])
-
-
-
-    # AI Signal Logic
+    rsi_value = float(rsi.iloc[-1])
 
 
-    if last > ma20 and ma20 > ma50 and rsi < 70:
+    # Support resistance
 
-        trend = "Strong Bullish trend 📈"
+    support = float(close.tail(20).min())
 
-        action = "BUY bias - momentum positive"
-
-        confidence = 80
+    resistance = float(close.tail(20).max())
 
 
+    # Trend logic
 
-    elif last < ma20 and ma20 < ma50 and rsi > 30:
+    if last > ma20 and ma20 > ma50 and rsi_value > 55:
 
-        trend = "Strong Bearish trend 📉"
+        trend = "Bullish trend 📈"
+        action = "BUY CE - momentum positive"
+        confidence = 75
 
-        action = "SELL bias - weakness visible"
 
-        confidence = 80
+    elif last < ma20 and ma20 < ma50 and rsi_value < 45:
 
+        trend = "Bearish trend 📉"
+        action = "BUY PE - weakness visible"
+        confidence = 75
 
 
     else:
 
         trend = "Sideways market"
-
         action = "WAIT - mixed signals"
-
         confidence = 55
 
 
 
+    # Market type
 
-    support = last - 50
+    if abs(ma20 - ma50) > 100:
 
-    resistance = last + 50
+        market = "Trending market"
+
+
+    else:
+
+        market = "Range market"
+
 
 
     stoploss = last - 80
@@ -118,15 +118,17 @@ def analyze():
 
         "trend":trend,
 
+        "market":market,
+
+        "rsi":round(rsi_value,2),
+
+        "ma20":round(float(ma20),2),
+
+        "ma50":round(float(ma50),2),
+
         "support":round(support,2),
 
         "resistance":round(resistance,2),
-
-        "rsi":round(rsi,2),
-
-        "moving_average_20":round(ma20,2),
-
-        "moving_average_50":round(ma50,2),
 
         "confidence":str(confidence)+"%",
 
