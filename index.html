@@ -25,16 +25,64 @@ text-align:center;
 
 background:#222;
 
-margin:50px auto;
+margin:40px auto;
 
 padding:30px;
 
-width:350px;
+width:360px;
 
-border-radius:15px;
+border-radius:20px;
+
+box-shadow:0 0 20px #000;
 
 }
 
+
+h1{
+
+font-size:32px;
+
+}
+
+
+.price{
+
+font-size:35px;
+
+font-weight:bold;
+
+}
+
+
+.green{
+
+color:#00ff99;
+
+}
+
+
+.red{
+
+color:#ff5555;
+
+}
+
+
+button{
+
+padding:12px 25px;
+
+border:none;
+
+border-radius:10px;
+
+background:#008cff;
+
+color:white;
+
+font-size:16px;
+
+}
 
 </style>
 
@@ -54,38 +102,52 @@ border-radius:15px;
 <h2>NIFTY 50</h2>
 
 
-<h1 id="price">Loading...</h1>
+<div class="price" id="price">
+Loading...
+</div>
 
 
 <p id="change"></p>
 
-<p id="percent"></p>
+
+<h3 id="trend"></h3>
 
 
-<p id="trend"></p>
+<p id="market"></p>
 
 
-<p id="rsi"></p>
-
-<p id="ma20"></p>
-
-<p id="ma50"></p>
+<p>RSI : <span id="rsi"></span></p>
 
 
-<p id="support"></p>
-
-<p id="resistance"></p>
+<p>MA 20 : <span id="ma20"></span></p>
 
 
-<p id="confidence"></p>
+<p>MA 50 : <span id="ma50"></span></p>
 
 
-<p id="stoploss"></p>
+<p>Support : <span id="support"></span></p>
 
-<p id="target"></p>
+
+<p>Resistance : <span id="resistance"></span></p>
+
+
+<p>AI Confidence : <span id="confidence"></span></p>
+
+
+<p>Stop Loss : <span id="stop"></span></p>
+
+
+<p>Target : <span id="target"></span></p>
 
 
 <h2 id="action"></h2>
+
+
+<button onclick="loadData()">
+
+Refresh
+
+</button>
 
 
 </div>
@@ -96,58 +158,93 @@ border-radius:15px;
 <script>
 
 
-fetch("/analyze")
+async function loadData(){
 
 
-.then(res=>res.json())
+let response = await fetch("/analyze");
 
 
-.then(data=>{
+let data = await response.json();
 
 
-price.innerHTML=data.price;
+
+document.getElementById("price").innerHTML =
+data.price;
 
 
-change.innerHTML="Change: "+data.change;
+
+document.getElementById("change").innerHTML =
+"Change: "+data.change+" ("+data.percent+"%)";
 
 
-percent.innerHTML="Percent: "+data.percent+"%";
+
+document.getElementById("trend").innerHTML =
+data.trend;
 
 
-trend.innerHTML=data.trend;
+
+document.getElementById("market").innerHTML =
+data.market;
 
 
-rsi.innerHTML="RSI: "+data.rsi;
+
+document.getElementById("rsi").innerHTML =
+data.rsi;
 
 
-ma20.innerHTML="MA 20: "+data.moving_average_20;
+
+document.getElementById("ma20").innerHTML =
+data.ma20;
 
 
-ma50.innerHTML="MA 50: "+data.moving_average_50;
+
+document.getElementById("ma50").innerHTML =
+data.ma50;
 
 
-support.innerHTML="Support: "+data.support;
+
+document.getElementById("support").innerHTML =
+data.support;
 
 
-resistance.innerHTML="Resistance: "+data.resistance;
+
+document.getElementById("resistance").innerHTML =
+data.resistance;
 
 
-confidence.innerHTML="AI Confidence: "+data.confidence;
+
+document.getElementById("confidence").innerHTML =
+data.confidence;
 
 
-stoploss.innerHTML="Stop Loss: "+data.stoploss;
+
+document.getElementById("stop").innerHTML =
+data.stoploss;
 
 
-target.innerHTML="Target: "+data.target;
+
+document.getElementById("target").innerHTML =
+data.target;
 
 
-action.innerHTML=data.action;
+
+document.getElementById("action").innerHTML =
+data.action;
 
 
-})
+
+}
+
+
+
+loadData();
+
+
+setInterval(loadData,30000);
 
 
 </script>
+
 
 
 </body>
