@@ -1,3 +1,15 @@
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+import yfinance as yf
+
+app = FastAPI()
+
+
+@app.get("/")
+def home():
+    return FileResponse("index.html")
+
+
 @app.get("/analyze")
 def analyze():
 
@@ -13,9 +25,11 @@ def analyze():
     if change > 0:
         trend = "Bullish trend 📈"
         action = "BUY bias - momentum positive"
+
     elif change < 0:
         trend = "Bearish trend 📉"
         action = "SELL bias - weakness visible"
+
     else:
         trend = "Sideways market"
         action = "WAIT - no clear direction"
