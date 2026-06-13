@@ -14,7 +14,9 @@ def home():
 
 
 def atm_strike(price):
+
     return round(price / 50) * 50
+
 
 
 
@@ -22,39 +24,63 @@ def get_option_chain():
 
     url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
 
+
     headers = {
+
         "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36",
 
         "Accept":
-        "application/json",
+        "application/json,text/plain,*/*",
 
         "Accept-Language":
         "en-US,en;q=0.9",
 
         "Referer":
-        "https://www.nseindia.com/option-chain"
+        "https://www.nseindia.com/option-chain",
+
+        "Connection":
+        "keep-alive"
     }
 
 
-    s = requests.Session()
+
+    session = requests.Session()
 
 
-    s.get(
+
+    session.get(
+
         "https://www.nseindia.com",
+
         headers=headers,
-        timeout=10
+
+        timeout=20
+
     )
 
 
-    r = s.get(
+
+    response = session.get(
+
         url,
+
         headers=headers,
-        timeout=10
+
+        timeout=20
+
     )
 
 
-    return r.json()
+
+    if response.status_code != 200:
+
+        raise Exception("NSE blocked request")
+
+
+
+    return response.json()
+
 
 
 
@@ -63,19 +89,28 @@ def get_option_chain():
 def analyze():
 
 
+
     nifty = yf.Ticker("^NSEI")
 
 
     data = nifty.history(period="5d")
 
 
-    last = float(data["Close"].iloc[-1])
+
+    last = float(
+        data["Close"].iloc[-1]
+    )
 
 
-    previous = float(data["Close"].iloc[-2])
+
+    previous = float(
+        data["Close"].iloc[-2]
+    )
+
 
 
     change = last - previous
+
 
 
     atm = atm_strike(last)
@@ -89,8 +124,10 @@ def analyze():
     pe_oi = 0
 
 
+
     ce_trend = "No Data"
     pe_trend = "No Data"
+
 
 
     pcr = 0
@@ -103,14 +140,22 @@ def analyze():
         chain = get_option_chain()
 
 
-        records = chain["records"]["data"]
+
+        records = chain.get(
+            "records",
+            {}
+        ).get(
+            "data",
+            []
+        )
 
 
 
         for row in records:
 
 
-            if row["strikePrice"] == atm:
+
+            if row.get("strikePrice") == atm:
 
 
 
@@ -151,6 +196,7 @@ def analyze():
                     )
 
 
+
                 break
 
 
@@ -167,7 +213,9 @@ def analyze():
 
 
 
-        if ce_oi:
+
+        if ce_oi > 0:
+
 
             pcr = round(
                 pe_oi / ce_oi,
@@ -183,7 +231,22 @@ def analyze():
 
 
 
-    if change > 0 and pcr < 1:
+
+    # AI LOGIC
+
+
+    if ce_oi == 0 or pe_oi == 0:
+
+
+
+        signal = "WAIT"
+
+        confidence = 50
+
+
+
+    elif change > 0 and pcr < 1:
+
 
 
         signal = "BUY CE"
@@ -195,6 +258,7 @@ def analyze():
     elif change < 0 and pcr > 1:
 
 
+
         signal = "BUY PE"
 
         confidence = 75
@@ -204,6 +268,7 @@ def analyze():
     else:
 
 
+
         signal = "WAIT"
 
         confidence = 55
@@ -211,7 +276,9 @@ def analyze():
 
 
 
+
     return {
+
 
 
         "index":
@@ -224,6 +291,7 @@ def analyze():
 
 
 
+
         "option_chain":{
 
 
@@ -233,6 +301,7 @@ def analyze():
 
 
             "CE":{
+
 
                 "price":
                 ce_price,
@@ -264,6 +333,7 @@ def analyze():
                 pe_trend
 
             },
+
 
 
             "PCR":
