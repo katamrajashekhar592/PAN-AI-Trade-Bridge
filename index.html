@@ -1,40 +1,84 @@
 <!DOCTYPE html>
-
 <html>
 
 <head>
 
 <title>PAN AI Trade Bridge</title>
 
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 
 <style>
-
 
 body{
 
 background:#111;
-
 color:white;
-
 font-family:Arial;
-
 text-align:center;
 
 }
 
 
+h1{
+
+margin-top:30px;
+
+}
+
 
 .card{
 
 background:#222;
-
+width:85%;
+max-width:500px;
 margin:40px auto;
-
 padding:30px;
-
-width:380px;
-
 border-radius:20px;
+
+box-shadow:0 0 20px #000;
+
+}
+
+
+.price{
+
+font-size:40px;
+font-weight:bold;
+
+}
+
+
+.section{
+
+margin-top:25px;
+border-top:1px solid #777;
+padding-top:20px;
+
+}
+
+
+.title{
+
+font-size:22px;
+font-weight:bold;
+
+}
+
+
+.value{
+
+margin:10px;
+font-size:18px;
+
+}
+
+
+.signal{
+
+font-size:28px;
+font-weight:bold;
+margin-top:20px;
 
 }
 
@@ -43,22 +87,18 @@ border-radius:20px;
 button{
 
 background:#008cff;
-
 color:white;
-
-padding:12px 25px;
-
-border:0;
-
+border:none;
+padding:15px 35px;
 border-radius:10px;
+font-size:18px;
 
 }
 
-
 </style>
 
-
 </head>
+
 
 
 <body>
@@ -73,117 +113,184 @@ border-radius:10px;
 <h2>NIFTY 50</h2>
 
 
-<h1 id="nifty">
-Loading
-</h1>
+<div class="price" id="price">
+Loading...
+</div>
 
 
-<h2>OPTION CHAIN</h2>
+<div class="section">
 
 
-<p>
+<div class="title">
+OPTION CHAIN
+</div>
+
+
+<div class="value">
+
 ATM Strike :
 <span id="atm"></span>
-</p>
+
+</div>
+
+
+</div>
 
 
 
-<hr>
 
 
-<h3>CALL (CE)</h3>
+<div class="section">
 
 
-<p>
-Price:
-<span id="ce"></span>
-</p>
+<div class="title">
+CALL (CE)
+</div>
 
 
-<p>
-OI:
-<span id="ceoi"></span>
-</p>
+<div class="value">
+
+Price :
+<span id="ce_price"></span>
+
+</div>
 
 
-<p>
-Trend:
-<span id="cetrend"></span>
-</p>
+<div class="value">
+
+OI :
+<span id="ce_oi"></span>
+
+</div>
 
 
+<div class="value">
 
-<hr>
+Trend :
+<span id="ce_trend"></span>
 
-
-<h3>PUT (PE)</h3>
-
-
-<p>
-Price:
-<span id="pe"></span>
-</p>
+</div>
 
 
-<p>
-OI:
-<span id="peoi"></span>
-</p>
-
-
-<p>
-Trend:
-<span id="petrend"></span>
-</p>
+</div>
 
 
 
-<hr>
 
 
-<p>
-PCR:
+
+<div class="section">
+
+
+<div class="title">
+PUT (PE)
+</div>
+
+
+
+<div class="value">
+
+Price :
+<span id="pe_price"></span>
+
+</div>
+
+
+<div class="value">
+
+OI :
+<span id="pe_oi"></span>
+
+</div>
+
+
+
+<div class="value">
+
+Trend :
+<span id="pe_trend"></span>
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+<div class="section">
+
+
+<div class="value">
+
+PCR :
 <span id="pcr"></span>
-</p>
+
+</div>
 
 
+<div class="signal" id="signal">
 
-<h2 id="signal"></h2>
+WAIT
+
+</div>
 
 
+<div class="value">
 
-<p>
-AI Confidence:
+AI Confidence :
 <span id="confidence"></span>
-</p>
+
+</div>
 
 
-<p>
-Entry:
+<div class="value">
+
+Entry :
 <span id="entry"></span>
-</p>
+
+</div>
 
 
-<p>
-Stop Loss:
+<div class="value">
+
+Stop Loss :
 <span id="sl"></span>
-</p>
+
+</div>
 
 
-<p>
-Target:
+
+<div class="value">
+
+Target :
 <span id="target"></span>
-</p>
 
+</div>
+
+
+
+</div>
+
+
+
+<br>
 
 
 <button onclick="loadData()">
+
 Refresh
+
 </button>
 
 
 
 </div>
+
+
+
 
 
 
@@ -193,59 +300,106 @@ Refresh
 async function loadData(){
 
 
-let r =
-await fetch("/analyze");
-
-let d =
-await r.json();
+try{
 
 
-
-nifty.innerHTML=d.nifty;
-
-
-atm.innerHTML=d.atm;
+let response = await fetch("/analyze");
 
 
-ce.innerHTML=d.ce_price;
+let data = await response.json();
 
 
-pe.innerHTML=d.pe_price;
 
 
-ceoi.innerHTML=d.ce_oi;
+document.getElementById("price").innerHTML =
+data.price;
 
 
-peoi.innerHTML=d.pe_oi;
+
+document.getElementById("atm").innerHTML =
+data.option_chain.ATM;
 
 
-cetrend.innerHTML=d.ce_trend;
+
+document.getElementById("ce_price").innerHTML =
+data.option_chain.CE.price;
 
 
-petrend.innerHTML=d.pe_trend;
+
+document.getElementById("ce_oi").innerHTML =
+data.option_chain.CE.OI;
 
 
-pcr.innerHTML=d.pcr;
+
+document.getElementById("ce_trend").innerHTML =
+data.option_chain.CE.trend;
 
 
-signal.innerHTML=
-"AI SIGNAL : "+d.signal;
 
 
-confidence.innerHTML=d.confidence;
+document.getElementById("pe_price").innerHTML =
+data.option_chain.PE.price;
 
 
-entry.innerHTML=d.entry;
+
+document.getElementById("pe_oi").innerHTML =
+data.option_chain.PE.OI;
 
 
-sl.innerHTML=d.stoploss;
+
+document.getElementById("pe_trend").innerHTML =
+data.option_chain.PE.trend;
 
 
-target.innerHTML=d.target;
+
+
+document.getElementById("pcr").innerHTML =
+data.option_chain.PCR;
+
+
+
+document.getElementById("signal").innerHTML =
+"AI SIGNAL : " + data.signal;
+
+
+
+document.getElementById("confidence").innerHTML =
+data.confidence;
+
+
+
+document.getElementById("entry").innerHTML =
+data.entry;
+
+
+
+document.getElementById("sl").innerHTML =
+data.stoploss;
+
+
+
+document.getElementById("target").innerHTML =
+data.target;
 
 
 
 }
+
+catch(error){
+
+
+console.log(error);
+
+
+document.getElementById("signal").innerHTML =
+"DATA ERROR";
+
+
+}
+
+
+}
+
 
 
 loadData();
@@ -255,7 +409,7 @@ loadData();
 </script>
 
 
-</body>
 
+</body>
 
 </html>
