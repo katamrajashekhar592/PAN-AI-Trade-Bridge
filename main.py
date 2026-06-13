@@ -1,9 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
-import requests
 import yfinance as yf
 import math
-
 
 app = FastAPI()
 
@@ -13,270 +11,165 @@ def home():
     return FileResponse("index.html")
 
 
-
-def get_option_chain():
-
-    url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
-
-
-    headers = {
-
-        "User-Agent":
-        "Mozilla/5.0",
-
-        "Accept-Language":
-        "en-US,en;q=0.9"
-
-    }
-
-
-    session = requests.Session()
-
-
-    session.get(
-        "https://www.nseindia.com",
-        headers=headers
-    )
-
-
-    data = session.get(
-        url,
-        headers=headers
-    ).json()
-
-
-
-    return data
-
-
+def get_atm_strike(price):
+    return round(price / 50) * 50
 
 
 @app.get("/analyze")
 def analyze():
 
-
-    # NIFTY PRICE
-
+    # NIFTY DATA
     nifty = yf.Ticker("^NSEI")
+    data = nifty.history(period="5d")
 
-    df = nifty.history(period="5d")
+    last = float(data["Close"].iloc[-1])
+    previous = float(data["Close"].iloc[-2])
 
-
-    price = float(
-        df["Close"].iloc[-1]
-    )
-
-
-
-    # ATM STRIKE
-
-    atm = int(
-        round(price/50)*50
-    )
-
+    change = last - previous
+    percent = (change / previous) * 100
 
 
     # OPTION DATA
+    try:
 
-    option = get_option_chain()
+        option = yf.Ticker("^NSEI")
+        expiry = option.options[0]
 
+        chain = option.option_chain(expiry)
 
-
-    records = option["records"]["data"]
-
-
-
-    ce = {}
-
-    pe = {}
+        calls = chain.calls
+        puts = chain.puts
 
 
-
-    for item in records:
-
-
-        if item["strikePrice"] == atm:
+        atm = get_atm_strike(last)
 
 
-            ce = item.get("CE",{})
-
-            pe = item.get("PE",{})
-
-
-
-    ce_ltp = ce.get("lastPrice",0)
-
-    pe_ltp = pe.get("lastPrice",0)
+        ce = calls.iloc[
+            (calls["strike"]-atm).abs().argsort()[:1]
+        ].iloc[0]
 
 
-    ce_oi = ce.get("openInterest",0)
-
-    pe_oi = pe.get("openInterest",0)
-
-
-
-    if pe_oi !=0:
-
-        pcr = round(
-            ce_oi/pe_oi,
-            2
-        )
-
-    else:
-
-        pcr = 0
+        pe = puts.iloc[
+            (puts["strike"]-atm).abs().argsort()[:1]
+        ].iloc[0]
 
 
+        ce_price = float(ce["lastPrice"])
+        pe_price = float(pe["lastPrice"])
+
+        ce_oi = int(ce["openInterest"])
+        pe_oi = int(pe["openInterest"])
 
 
-    # OPTION AI LOGIC
+        if ce_price > pe_price:
+            ce_trend="Bullish"
+            pe_trend="Weak"
+
+        else:
+            ce_trend="Weak"
+            pe_trend="Bullish"
 
 
-    if ce_oi > pe_oi and pcr > 1:
+        pcr = round(pe_oi / ce_oi,2)
 
 
-        signal="BUY CE"
+    except Exception:
 
-        confidence=80
-
-
-        ce_trend="Strong"
-
-
-        pe_trend="Weak"
+        atm = 0
+        ce_price = 0
+        pe_price = 0
+        ce_oi = 0
+        pe_oi = 0
+        ce_trend="NA"
+        pe_trend="NA"
+        pcr=0
 
 
 
-    elif pe_oi > ce_oi and pcr < 1:
+    # AI LOGIC
+
+    confidence = 50
 
 
-        signal="BUY PE"
+    if change > 0 and pcr > 1:
 
-        confidence=80
-
-
-        ce_trend="Weak"
+        signal = "BUY CE"
+        confidence = 75
 
 
-        pe_trend="Strong"
+    elif change < 0 and pcr < 1:
 
+        signal = "BUY PE"
+        confidence = 75
 
 
     else:
 
-
-        signal="WAIT"
-
-
-        confidence=55
-
-
-        ce_trend="Neutral"
-
-
-        pe_trend="Neutral"
+        signal = "WAIT"
+        confidence = 55
 
 
 
+    entry = last
 
-    if signal=="BUY CE":
+    stoploss = last - 80
 
-
-        entry=ce_ltp
-
-        stop=entry-20
-
-        target=entry+40
-
-
-
-    elif signal=="BUY PE":
-
-
-        entry=pe_ltp
-
-        stop=entry-20
-
-        target=entry+40
-
-
-
-    else:
-
-
-        entry=0
-
-        stop=0
-
-        target=0
-
-
+    target = last + 120
 
 
 
     return {
 
 
-        "nifty":
-        round(price,2),
+        "index":"NIFTY 50",
+
+        "price":round(last,2),
+
+        "change":round(change,2),
+
+        "percent":round(percent,2),
 
 
-        "atm":
-        atm,
+        "option_chain":{
+
+            "ATM Strike":atm,
 
 
+            "CE":{
 
-        "ce_price":
-        ce_ltp,
+                "price":ce_price,
 
+                "OI":ce_oi,
 
-        "pe_price":
-        pe_ltp,
-
-
-
-        "ce_oi":
-        ce_oi,
+                "trend":ce_trend
+            },
 
 
-        "pe_oi":
-        pe_oi,
+            "PE":{
+
+                "price":pe_price,
+
+                "OI":pe_oi,
+
+                "trend":pe_trend
+
+            },
 
 
-
-        "pcr":
-        pcr,
-
+            "PCR":pcr
+        },
 
 
-        "ce_trend":
-        ce_trend,
+        "confidence":str(confidence)+"%",
 
 
-        "pe_trend":
-        pe_trend,
+        "entry":round(entry,2),
+
+        "stoploss":round(stoploss,2),
+
+        "target":round(target,2),
 
 
-
-        "signal":
-        signal,
-
-
-
-        "confidence":
-        str(confidence)+"%",
-
-
-
-        "entry":
-        entry,
-
-
-        "stoploss":
-        stop,
-
-
-        "target":
-        target
+        "signal":signal
 
     }
