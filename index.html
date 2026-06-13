@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html>
 
 <head>
@@ -8,17 +9,19 @@
 
 <style>
 
-body{
 
-font-family:Arial;
+body{
 
 background:#111;
 
 color:white;
 
+font-family:Arial;
+
 text-align:center;
 
 }
+
 
 
 .card{
@@ -29,60 +32,28 @@ margin:40px auto;
 
 padding:30px;
 
-width:360px;
+width:380px;
 
 border-radius:20px;
 
-box-shadow:0 0 20px #000;
-
 }
 
-
-h1{
-
-font-size:32px;
-
-}
-
-
-.price{
-
-font-size:35px;
-
-font-weight:bold;
-
-}
-
-
-.green{
-
-color:#00ff99;
-
-}
-
-
-.red{
-
-color:#ff5555;
-
-}
 
 
 button{
-
-padding:12px 25px;
-
-border:none;
-
-border-radius:10px;
 
 background:#008cff;
 
 color:white;
 
-font-size:16px;
+padding:12px 25px;
+
+border:0;
+
+border-radius:10px;
 
 }
+
 
 </style>
 
@@ -102,56 +73,117 @@ font-size:16px;
 <h2>NIFTY 50</h2>
 
 
-<div class="price" id="price">
-Loading...
-</div>
+<h1 id="nifty">
+Loading
+</h1>
 
 
-<p id="change"></p>
+<h2>OPTION CHAIN</h2>
 
 
-<h3 id="trend"></h3>
+<p>
+ATM Strike :
+<span id="atm"></span>
+</p>
 
 
-<p id="market"></p>
+
+<hr>
 
 
-<p>RSI : <span id="rsi"></span></p>
+<h3>CALL (CE)</h3>
 
 
-<p>MA 20 : <span id="ma20"></span></p>
+<p>
+Price:
+<span id="ce"></span>
+</p>
 
 
-<p>MA 50 : <span id="ma50"></span></p>
+<p>
+OI:
+<span id="ceoi"></span>
+</p>
 
 
-<p>Support : <span id="support"></span></p>
+<p>
+Trend:
+<span id="cetrend"></span>
+</p>
 
 
-<p>Resistance : <span id="resistance"></span></p>
+
+<hr>
 
 
-<p>AI Confidence : <span id="confidence"></span></p>
+<h3>PUT (PE)</h3>
 
 
-<p>Stop Loss : <span id="stop"></span></p>
+<p>
+Price:
+<span id="pe"></span>
+</p>
 
 
-<p>Target : <span id="target"></span></p>
+<p>
+OI:
+<span id="peoi"></span>
+</p>
 
 
-<h2 id="action"></h2>
+<p>
+Trend:
+<span id="petrend"></span>
+</p>
+
+
+
+<hr>
+
+
+<p>
+PCR:
+<span id="pcr"></span>
+</p>
+
+
+
+<h2 id="signal"></h2>
+
+
+
+<p>
+AI Confidence:
+<span id="confidence"></span>
+</p>
+
+
+<p>
+Entry:
+<span id="entry"></span>
+</p>
+
+
+<p>
+Stop Loss:
+<span id="sl"></span>
+</p>
+
+
+<p>
+Target:
+<span id="target"></span>
+</p>
+
 
 
 <button onclick="loadData()">
-
 Refresh
-
 </button>
 
 
-</div>
 
+</div>
 
 
 
@@ -161,92 +193,69 @@ Refresh
 async function loadData(){
 
 
-let response = await fetch("/analyze");
+let r =
+await fetch("/analyze");
 
-
-let data = await response.json();
-
-
-
-document.getElementById("price").innerHTML =
-data.price;
+let d =
+await r.json();
 
 
 
-document.getElementById("change").innerHTML =
-"Change: "+data.change+" ("+data.percent+"%)";
+nifty.innerHTML=d.nifty;
 
 
-
-document.getElementById("trend").innerHTML =
-data.trend;
+atm.innerHTML=d.atm;
 
 
-
-document.getElementById("market").innerHTML =
-data.market;
+ce.innerHTML=d.ce_price;
 
 
-
-document.getElementById("rsi").innerHTML =
-data.rsi;
+pe.innerHTML=d.pe_price;
 
 
-
-document.getElementById("ma20").innerHTML =
-data.ma20;
+ceoi.innerHTML=d.ce_oi;
 
 
-
-document.getElementById("ma50").innerHTML =
-data.ma50;
+peoi.innerHTML=d.pe_oi;
 
 
-
-document.getElementById("support").innerHTML =
-data.support;
+cetrend.innerHTML=d.ce_trend;
 
 
-
-document.getElementById("resistance").innerHTML =
-data.resistance;
+petrend.innerHTML=d.pe_trend;
 
 
-
-document.getElementById("confidence").innerHTML =
-data.confidence;
+pcr.innerHTML=d.pcr;
 
 
-
-document.getElementById("stop").innerHTML =
-data.stoploss;
-
+signal.innerHTML=
+"AI SIGNAL : "+d.signal;
 
 
-document.getElementById("target").innerHTML =
-data.target;
+confidence.innerHTML=d.confidence;
 
 
+entry.innerHTML=d.entry;
 
-document.getElementById("action").innerHTML =
-data.action;
+
+sl.innerHTML=d.stoploss;
+
+
+target.innerHTML=d.target;
 
 
 
 }
 
 
-
 loadData();
 
-
-setInterval(loadData,30000);
 
 
 </script>
 
 
-
 </body>
+
 
 </html>
