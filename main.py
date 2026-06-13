@@ -5,15 +5,20 @@ app = FastAPI()
 @app.get("/")
 def home():
     return {
-        "status":"PAN AI Trade Bridge Running"
+        "status": "PAN AI Trade Bridge Running",
+        "version": "1.0"
     }
 
-@app.get("/signal")
-def signal():
+
+@app.get("/analyze")
+def analyze():
+
     return {
-        "market":"NIFTY",
-        "trend":"Bullish",
-        "option":"CE WATCH",
-        "confidence":82,
-        "analysis":"15 min candle + global cues"
+        "index": "NIFTY50",
+        "trend": "Analyzing",
+        "market_view": "AI engine connected",
+        "support": "Will calculate",
+        "resistance": "Will calculate",
+        "global_cues": "Pending",
+        "action": "Wait for live data"
     }
