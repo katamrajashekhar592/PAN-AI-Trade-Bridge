@@ -4,7 +4,6 @@ import yfinance as yf
 import requests
 import time
 
-
 app = FastAPI()
 
 
@@ -17,28 +16,24 @@ def atm_strike(price):
     return round(price / 50) * 50
 
 
-
 def get_option_chain():
 
     url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
 
-
     headers = {
         "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-
         "Accept":
         "application/json",
-
+        "Accept-Language":
+        "en-US,en;q=0.9",
         "Referer":
         "https://www.nseindia.com/option-chain"
     }
 
-
-    session = requests.Session()
-
-
     try:
+
+        session = requests.Session()
 
         session.get(
             "https://www.nseindia.com",
@@ -46,16 +41,13 @@ def get_option_chain():
             timeout=10
         )
 
-
         time.sleep(1)
-
 
         response = session.get(
             url,
             headers=headers,
             timeout=10
         )
-
 
         return response.json()
 
@@ -64,9 +56,7 @@ def get_option_chain():
 
         print("NSE ERROR:",e)
 
-        return {}
-
-
+        return None
 
 
 
@@ -76,9 +66,8 @@ def analyze():
 
     nifty = yf.Ticker("^NSEI")
 
-
     data = nifty.history(
-        period="2d",
+        period="5d",
         interval="5m"
     )
 
@@ -96,9 +85,7 @@ def analyze():
     change = last - previous
 
 
-
     atm = atm_strike(last)
-
 
 
     ce_price = 0
@@ -111,13 +98,14 @@ def analyze():
     ce_trend = "No Data"
     pe_trend = "No Data"
 
+    pcr = 0
+
+
+
+    chain = get_option_chain()
 
 
     try:
-
-
-        chain = get_option_chain()
-
 
         records = chain["records"]["data"]
 
@@ -128,18 +116,14 @@ def analyze():
             if row["strikePrice"] == atm:
 
 
-
                 if "CE" in row:
 
-
                     ce = row["CE"]
-
 
                     ce_price = ce.get(
                         "lastPrice",
                         0
                     )
-
 
                     ce_oi = ce.get(
                         "openInterest",
@@ -147,18 +131,14 @@ def analyze():
                     )
 
 
-
                 if "PE" in row:
 
-
                     pe = row["PE"]
-
 
                     pe_price = pe.get(
                         "lastPrice",
                         0
                     )
-
 
                     pe_oi = pe.get(
                         "openInterest",
@@ -172,13 +152,21 @@ def analyze():
 
         if ce_oi > pe_oi:
 
-            ce_trend = "CE Strong"
+            ce_trend="CE Strong"
 
 
         elif pe_oi > ce_oi:
 
-            pe_trend = "PE Strong"
+            pe_trend="PE Strong"
 
+
+
+        if ce_oi:
+
+            pcr = round(
+                pe_oi / ce_oi,
+                2
+            )
 
 
     except Exception as e:
@@ -187,125 +175,89 @@ def analyze():
 
 
 
-    pcr = 0
+
+    if change > 0 and pcr > 1:
 
 
-    if ce_oi > 0:
+        signal="BUY CE"
 
-        pcr = round(
-            pe_oi / ce_oi,
-            2
-        )
-
-
-
-    if change > 0 and ce_oi > pe_oi:
-
-
-        signal = "BUY CE"
-
-        confidence = 75
+        confidence=75
 
 
 
-    elif change < 0 and pe_oi > ce_oi:
+    elif change < 0 and pcr < 1:
 
 
-        signal = "BUY PE"
+        signal="BUY PE"
 
-        confidence = 75
+        confidence=75
 
 
 
     else:
 
 
-        signal = "WAIT"
+        signal="WAIT"
 
-        confidence = 50
-
-
+        confidence=50
 
 
 
     return {
 
 
-        "index":
-        "NIFTY 50",
+        "index":"NIFTY 50",
 
 
-
-        "price":
-        round(last,2),
-
+        "price":round(last,2),
 
 
         "option_chain":{
 
 
-            "ATM":
-            atm,
+            "ATM":atm,
 
 
             "CE":{
 
+                "price":ce_price,
 
-                "price":
-                ce_price,
+                "OI":ce_oi,
 
-
-                "OI":
-                ce_oi,
-
-
-                "trend":
-                ce_trend
+                "trend":ce_trend
 
             },
 
 
             "PE":{
 
+                "price":pe_price,
 
-                "price":
-                pe_price,
+                "OI":pe_oi,
 
-
-                "OI":
-                pe_oi,
-
-
-                "trend":
-                pe_trend
+                "trend":pe_trend
 
             },
 
 
-            "PCR":
-            pcr
-
+            "PCR":pcr
 
         },
 
 
-        "signal":
-        signal,
+        "signal":signal,
 
 
         "confidence":
         str(confidence)+"%",
 
 
-
         "entry":
         round(last,2),
 
 
-
         "stoploss":
         round(last-80,2),
-
 
 
         "target":
