@@ -1,29 +1,43 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <title>PAN AI Trade Bridge</title>
 
+
 <style>
 
 body{
+
 font-family:Arial;
+
 background:#111;
+
 color:white;
+
 text-align:center;
+
 }
+
 
 .card{
 
 background:#222;
+
 margin:50px auto;
+
 padding:30px;
+
 width:350px;
+
 border-radius:15px;
 
 }
 
+
 </style>
+
 
 </head>
 
@@ -36,6 +50,7 @@ border-radius:15px;
 
 <div class="card">
 
+
 <h2>NIFTY 50</h2>
 
 
@@ -46,13 +61,24 @@ border-radius:15px;
 
 <p id="percent"></p>
 
+
 <p id="trend"></p>
+
+
+<p id="rsi"></p>
+
+<p id="ma20"></p>
+
+<p id="ma50"></p>
+
 
 <p id="support"></p>
 
 <p id="resistance"></p>
 
+
 <p id="confidence"></p>
+
 
 <p id="stoploss"></p>
 
@@ -66,69 +92,64 @@ border-radius:15px;
 
 
 
+
 <script>
 
 
 fetch("/analyze")
 
-.then(response=>response.json())
+
+.then(res=>res.json())
+
 
 .then(data=>{
 
 
-document.getElementById("price").innerHTML =
-data.price;
+price.innerHTML=data.price;
 
 
-document.getElementById("change").innerHTML =
-"Change: " + data.change;
+change.innerHTML="Change: "+data.change;
 
 
-document.getElementById("percent").innerHTML =
-"Percent: " + data.percent + "%";
+percent.innerHTML="Percent: "+data.percent+"%";
 
 
-document.getElementById("trend").innerHTML =
-data.trend;
+trend.innerHTML=data.trend;
 
 
-document.getElementById("support").innerHTML =
-"Support: " + data.support;
+rsi.innerHTML="RSI: "+data.rsi;
 
 
-document.getElementById("resistance").innerHTML =
-"Resistance: " + data.resistance;
+ma20.innerHTML="MA 20: "+data.moving_average_20;
 
 
-document.getElementById("confidence").innerHTML =
-"AI Confidence: " + data.confidence;
+ma50.innerHTML="MA 50: "+data.moving_average_50;
 
 
-document.getElementById("stoploss").innerHTML =
-"Stop Loss: " + data.stoploss;
+support.innerHTML="Support: "+data.support;
 
 
-document.getElementById("target").innerHTML =
-"Target: " + data.target;
+resistance.innerHTML="Resistance: "+data.resistance;
 
 
-document.getElementById("action").innerHTML =
-data.action;
+confidence.innerHTML="AI Confidence: "+data.confidence;
+
+
+stoploss.innerHTML="Stop Loss: "+data.stoploss;
+
+
+target.innerHTML="Target: "+data.target;
+
+
+action.innerHTML=data.action;
 
 
 })
-
-
-.catch(error=>{
-
-document.getElementById("action").innerHTML =
-"Server error";
-
-});
 
 
 </script>
 
 
 </body>
+
 </html>
