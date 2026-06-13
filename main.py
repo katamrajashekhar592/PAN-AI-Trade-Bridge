@@ -139,7 +139,7 @@ def analyze():
 
     try:
 
-        records = chain["records"]["data"]
+         records = chain.get("records",{}).get("data",[])
 
 
         for row in records:
