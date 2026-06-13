@@ -8,16 +8,15 @@ import time
 app = FastAPI()
 
 
-
 @app.get("/")
 def home():
     return FileResponse("index.html")
 
 
 
-# ----------------------------
-# NIFTY PRICE
-# ----------------------------
+# -----------------------------
+# LIVE NIFTY PRICE
+# -----------------------------
 
 def get_nifty_price():
 
@@ -28,16 +27,14 @@ def get_nifty_price():
             interval="1m"
         )
 
-        price = float(
+        return float(
             data["Close"].iloc[-1]
         )
-
-        return price
 
 
     except Exception as e:
 
-        print("PRICE ERROR:",e)
+        print("NIFTY ERROR:", e)
 
         return 0
 
@@ -45,32 +42,29 @@ def get_nifty_price():
 
 
 
-# ----------------------------
+# -----------------------------
 # ATM STRIKE
-# ----------------------------
+# -----------------------------
 
 def get_atm(price):
 
     return int(
-        round(price/50)*50
+        round(price / 50) * 50
     )
 
 
 
 
 
-# ----------------------------
+# -----------------------------
 # NSE OPTION CHAIN
-# ----------------------------
+# -----------------------------
 
 def get_option_chain():
 
-
     try:
 
-
         session = requests.Session()
-
 
 
         headers = {
@@ -82,16 +76,11 @@ def get_option_chain():
             "application/json",
 
             "Referer":
-            "https://www.nseindia.com/option-chain",
-
-            "Accept-Language":
-            "en-US,en;q=0.9"
+            "https://www.nseindia.com/option-chain"
 
         }
 
 
-
-        # create NSE cookies
 
         session.get(
 
@@ -110,8 +99,8 @@ def get_option_chain():
 
         url = (
 
-        "https://www.nseindia.com/api/"
-        "option-chain-indices?symbol=NIFTY"
+            "https://www.nseindia.com/api/"
+            "option-chain-indices?symbol=NIFTY"
 
         )
 
@@ -150,7 +139,7 @@ def get_option_chain():
 
 
         print(
-            "NSE ERROR:",
+            "OPTION ERROR:",
             e
         )
 
@@ -161,11 +150,9 @@ def get_option_chain():
 
 
 
-
-# ----------------------------
-# ANALYSIS
-# ----------------------------
-
+# -----------------------------
+# ANALYSIS API
+# -----------------------------
 
 @app.get("/analyze")
 def analyze():
@@ -178,12 +165,14 @@ def analyze():
 
     if price == 0:
 
+
         return {
 
-        "error":
-        "NIFTY price unavailable"
+            "error":
+            "NIFTY price unavailable"
 
         }
+
 
 
 
@@ -217,13 +206,13 @@ def analyze():
                 chain
 
                 .get(
-                "records",
-                {}
+                    "records",
+                    {}
                 )
 
                 .get(
-                "data",
-                []
+                    "data",
+                    []
                 )
 
             )
@@ -231,8 +220,8 @@ def analyze():
 
 
             print(
-            "TOTAL RECORDS:",
-            len(records)
+                "OPTION RECORDS:",
+                len(records)
             )
 
 
@@ -242,15 +231,11 @@ def analyze():
 
 
 
-                if item.get(
-                    "strikePrice"
-                ) == atm:
-
+                if item.get("strikePrice") == atm:
 
 
 
                     if "CE" in item:
-
 
 
                         ce_price = item["CE"].get(
@@ -259,7 +244,6 @@ def analyze():
                             0
 
                         )
-
 
 
                         ce_oi = item["CE"].get(
@@ -275,14 +259,12 @@ def analyze():
                     if "PE" in item:
 
 
-
                         pe_price = item["PE"].get(
 
                             "lastPrice",
                             0
 
                         )
-
 
 
                         pe_oi = item["PE"].get(
@@ -299,12 +281,13 @@ def analyze():
 
 
 
+
     except Exception as e:
 
 
         print(
-        "READ ERROR:",
-        e
+            "READ ERROR:",
+            e
         )
 
 
@@ -312,10 +295,11 @@ def analyze():
 
 
 
-    # PCR
 
+    # PCR CALCULATION
 
     if ce_oi > 0:
+
 
         pcr = round(
 
@@ -325,7 +309,9 @@ def analyze():
 
         )
 
+
     else:
+
 
         pcr = 0
 
@@ -333,10 +319,19 @@ def analyze():
 
 
 
-    # SIGNAL LOGIC
+
+    # SIGNAL LOGIC FIXED
+
+    if ce_oi == 0 and pe_oi == 0:
 
 
-    if pcr > 1.2:
+        signal = "WAIT"
+
+        confidence = "0%"
+
+
+
+    elif pcr > 1.2:
 
 
         signal = "BUY PE"
@@ -370,14 +365,16 @@ def analyze():
     return {
 
 
-
         "index":
+
         "NIFTY 50",
 
 
 
         "price":
+
         round(price,2),
+
 
 
 
@@ -385,6 +382,7 @@ def analyze():
 
 
             "ATM":
+
             atm,
 
 
@@ -393,10 +391,12 @@ def analyze():
 
 
                 "price":
+
                 ce_price,
 
 
                 "OI":
+
                 ce_oi
 
 
@@ -408,10 +408,12 @@ def analyze():
 
 
                 "price":
+
                 pe_price,
 
 
                 "OI":
+
                 pe_oi
 
 
@@ -420,35 +422,41 @@ def analyze():
 
 
             "PCR":
-            pcr
 
+            pcr
 
 
         },
 
 
 
+
         "signal":
+
         signal,
 
 
 
         "confidence":
+
         confidence,
 
 
 
         "entry":
+
         round(price,2),
 
 
 
         "stoploss":
+
         round(price-80,2),
 
 
 
         "target":
+
         round(price+120,2)
 
 
