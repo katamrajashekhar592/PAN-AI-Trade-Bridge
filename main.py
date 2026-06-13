@@ -1,34 +1,41 @@
 from fastapi import FastAPI
-import yfinance as yf
+from datetime import datetime
 
-app = FastAPI()
+app = FastAPI(
+    title="PAN AI Trade Bridge",
+    description="AI based NIFTY50 market analysis API",
+    version="1.0"
+)
 
 
 @app.get("/")
 def home():
     return {
-        "status": "PAN AI Trade Bridge Running",
-        "version": "2.0"
+        "status": "PAN AI Trade Bridge is running",
+        "time": datetime.now().isoformat()
     }
 
 
 @app.get("/analyze")
 def analyze():
 
-    nifty = yf.Ticker("^NSEI")
-    data = nifty.history(period="1d")
+    # Demo AI analysis engine
+    # Later we will connect live NIFTY data here
 
-    price = round(data["Close"].iloc[-1], 2)
-    high = round(data["High"].iloc[-1], 2)
-    low = round(data["Low"].iloc[-1], 2)
-
-    return {
+    nifty_analysis = {
         "index": "NIFTY50",
-        "price": price,
-        "day_high": high,
-        "day_low": low,
-        "trend": "Live data connected",
-        "support": low,
-        "resistance": high,
-        "action": "AI analysis pending"
+        "trend": "Analyzing",
+        "market_view": "AI engine connected",
+        "support": [
+            "Will calculate support levels"
+        ],
+        "resistance": [
+            "Will calculate resistance levels"
+        ],
+        "global_cues": "Pending live market connection",
+        "action": "WAIT",
+        "risk": "Manage with stop loss",
+        "timestamp": datetime.now().isoformat()
     }
+
+    return nifty_analysis
