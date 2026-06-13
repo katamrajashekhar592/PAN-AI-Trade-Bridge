@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
-import requests
 import yfinance as yf
+import requests
 import math
 
 app = FastAPI()
@@ -12,10 +12,8 @@ def home():
     return FileResponse("index.html")
 
 
-
 def atm_strike(price):
     return round(price / 50) * 50
-
 
 
 def get_option_chain():
@@ -38,26 +36,25 @@ def get_option_chain():
     )
 
 
-    response = session.get(
+    r = session.get(
         url,
         headers=headers
     )
 
 
-    return response.json()
+    return r.json()
 
 
 
 @app.get("/analyze")
 def analyze():
 
+
     # NIFTY DATA
 
     nifty = yf.Ticker("^NSEI")
 
-    data = nifty.history(
-        period="5d"
-    )
+    data = nifty.history(period="5d")
 
 
     last = float(
@@ -71,6 +68,7 @@ def analyze():
 
     change = last - previous
 
+
     percent = (
         change / previous
     ) * 100
@@ -80,6 +78,7 @@ def analyze():
     # OPTION CHAIN
 
     try:
+
 
         option = get_option_chain()
 
@@ -120,20 +119,19 @@ def analyze():
 
 
 
-        if ce_oi > pe_oi:
-
-            option_trend="CE strong"
-
-        else:
-
-            option_trend="PE strong"
-
-
-
         pcr = round(
             pe_oi / ce_oi,
             2
         )
+
+
+        if ce_oi > pe_oi:
+
+            option_bias = "CE Strong"
+
+        else:
+
+            option_bias = "PE Strong"
 
 
 
@@ -150,10 +148,9 @@ def analyze():
 
         pe_oi = 0
 
-        option_trend="No data"
+        pcr = 0
 
-        pcr=0
-
+        option_bias = "No Data"
 
 
 
@@ -162,113 +159,97 @@ def analyze():
 
     if pcr > 1 and change > 0:
 
-        signal="BUY CE"
 
-        confidence=75
+        signal = "BUY CE"
+
+        confidence = 75
 
 
 
-    elif pcr < 1 and change < 0:
+    elif pcr < 0.8 and change < 0:
 
-        signal="BUY PE"
 
-        confidence=75
+        signal = "BUY PE"
+
+        confidence = 75
 
 
 
     else:
 
-        signal="WAIT"
 
-        confidence=55
+        signal = "WAIT"
+
+        confidence = 55
+
 
 
 
     return {
 
 
-        "index":
-        "NIFTY 50",
+        "index":"NIFTY 50",
 
 
-        "price":
-        round(last,2),
+        "price":round(last,2),
 
 
-        "change":
-        round(change,2),
+        "change":round(change,2),
 
 
-        "percent":
-        round(percent,2),
+        "percent":round(percent,2),
 
 
 
         "option_chain":{
 
 
-            "ATM":
-            atm,
+            "ATM":atm,
 
 
             "CE":{
 
-                "price":
-                ce_price,
+                "price":ce_price,
 
-                "OI":
-                ce_oi,
+                "OI":ce_oi,
 
-                "trend":
-                option_trend
+                "trend":option_bias
 
             },
-
 
 
             "PE":{
 
 
-                "price":
-                pe_price,
+                "price":pe_price,
 
+                "OI":pe_oi,
 
-                "OI":
-                pe_oi,
-
-
-                "trend":
-                option_trend
+                "trend":option_bias
 
             },
 
 
-
-            "PCR":
-            pcr
-
+            "PCR":pcr
 
         },
 
 
-        "signal":
-        signal,
+        "signal":signal,
 
 
-        "confidence":
-        str(confidence)+"%",
+        "confidence":str(confidence)+"%",
 
 
-        "entry":
-        round(last,2),
+
+        "entry":round(last,2),
 
 
-        "stoploss":
-        round(last-80,2),
+        "stoploss":round(last-80,2),
 
 
-        "target":
-        round(last+120,2)
+        "target":round(last+120,2)
+
 
 
     }
