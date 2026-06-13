@@ -1,516 +1,413 @@
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
-import yfinance as yf
-import requests
-import time
+from fastapi.responses import HTMLResponse
+from kiteconnect import KiteConnect
+import os
+import math
 
 
 app = FastAPI()
 
 
+# ==========================
+# ZERODHA CONFIG
+# ==========================
 
-@app.get("/")
-def home():
-
-    return FileResponse("index.html")
-
-
-
+API_KEY = os.getenv("KITE_API_KEY")
+ACCESS_TOKEN = os.getenv("KITE_ACCESS_TOKEN")
 
 
-def get_nifty_price():
-
-    try:
-
-        data = yf.Ticker("^NSEI").history(period="2d")
+kite = KiteConnect(
+    api_key=API_KEY
+)
 
 
-        return float(
-            data["Close"].iloc[-1]
-        )
-
-
-    except Exception as e:
-
-        print("PRICE ERROR:",e)
-
-        return 0
+kite.set_access_token(
+    ACCESS_TOKEN
+)
 
 
 
+# ==========================
+# MARKET DATA ENGINE
+# ==========================
 
-
-def get_atm(price):
-
-    return round(price/50)*50
-
-
-
-
-
-def get_option_chain():
+def get_market_data():
 
     try:
 
 
-        session = requests.Session()
+        # NIFTY PRICE
+
+        nifty_data = kite.ltp(
+            "NSE:NIFTY 50"
+        )
+
+
+        nifty_price = nifty_data[
+            "NSE:NIFTY 50"
+        ][
+            "last_price"
+        ]
 
 
 
-        headers = {
+        # ATM STRIKE
 
-
-            "User-Agent":
-
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-
-
-            "Accept":
-
-            "application/json,text/plain,*/*",
-
-
-            "Accept-Language":
-
-            "en-US,en;q=0.9",
-
-
-            "Referer":
-
-            "https://www.nseindia.com/option-chain",
-
-
-            "Connection":
-
-            "keep-alive"
-
-
-        }
-
-
-
-        home = session.get(
-
-            "https://www.nseindia.com",
-
-            headers=headers,
-
-            timeout=20
-
+        atm = int(
+            round(nifty_price / 50) * 50
         )
 
 
 
-        print(
-        "HOME STATUS:",
-        home.status_code
+        # CURRENT EXPIRY CHANGE HERE
+        expiry = "26JUN"
+
+
+
+        ce_symbol = (
+            f"NSE:NIFTY{expiry}{atm}CE"
+        )
+
+
+        pe_symbol = (
+            f"NSE:NIFTY{expiry}{atm}PE"
         )
 
 
 
-        time.sleep(2)
-
-
-
-
-        url = (
-
-        "https://www.nseindia.com/api/"
-        "option-chain-indices?symbol=NIFTY"
-
+        options = kite.ltp(
+            [
+                ce_symbol,
+                pe_symbol
+            ]
         )
 
 
 
-        response = session.get(
-
-            url,
-
-            headers=headers,
-
-            timeout=20
-
+        ce_price = options.get(
+            ce_symbol,
+            {}
+        ).get(
+            "last_price",
+            0
         )
 
 
 
-        print(
-
-        "NSE STATUS:",
-        response.status_code
-
+        pe_price = options.get(
+            pe_symbol,
+            {}
+        ).get(
+            "last_price",
+            0
         )
 
 
 
-        if response.status_code == 200:
+        # PCR LOGIC
 
+        if ce_price > 0:
 
-            print(
-            "OPTION DATA RECEIVED"
+            pcr = round(
+                pe_price / ce_price,
+                2
             )
 
+        else:
 
-            return response.json()
+            pcr = 0
+
+
+
+        # AI SIGNAL
+
+
+        if pcr > 1.2:
+
+
+            signal = "BUY PE"
+
+            confidence = "75%"
+
+
+
+        elif pcr < 0.8:
+
+
+            signal = "BUY CE"
+
+            confidence = "75%"
 
 
 
         else:
 
 
-            print(
-            "NSE BLOCKED"
+            signal = "WAIT"
+
+            confidence = "50%"
+
+
+
+
+        return {
+
+
+            "index":
+            "NIFTY 50",
+
+
+            "price":
+            nifty_price,
+
+
+            "option_chain":{
+
+
+                "ATM":
+                atm,
+
+
+                "CE":{
+
+
+                    "price":
+                    ce_price
+
+
+                },
+
+
+                "PE":{
+
+
+                    "price":
+                    pe_price
+
+
+                }
+
+
+            },
+
+
+            "PCR":
+            pcr,
+
+
+            "signal":
+            signal,
+
+
+            "confidence":
+            confidence,
+
+
+            "entry":
+            nifty_price,
+
+
+            "stoploss":
+            round(
+                nifty_price - 80,
+                2
+            ),
+
+
+            "target":
+            round(
+                nifty_price + 120,
+                2
             )
 
-
-            return None
+        }
 
 
 
     except Exception as e:
 
 
-        print(
-
-        "OPTION ERROR:",
-        e
-
-        )
+        return {
 
 
-        return None
+            "error":
+            str(e)
+
+        }
 
 
 
 
 
-
+# ==========================
+# API ROUTE
+# ==========================
 
 
 @app.get("/analyze")
 def analyze():
 
+    return get_market_data()
 
 
-    price = get_nifty_price()
 
+# ==========================
+# DASHBOARD
+# ==========================
 
 
-    atm = get_atm(price)
+@app.get("/", response_class=HTMLResponse)
+def home():
 
 
+    data = get_market_data()
 
 
-    ce_price = 0
 
-    pe_price = 0
+    return f"""
 
+<html>
 
-    ce_oi = 0
+<head>
 
-    pe_oi = 0
+<title>
+PAN AI Trade Bridge
+</title>
 
 
+<style>
 
 
-    chain = get_option_chain()
+body{{
 
+background:#111;
+color:white;
+font-family:Arial;
+text-align:center;
 
+}}
 
 
+.card{{
 
-    try:
+background:#222;
+padding:30px;
+margin:40px;
+border-radius:20px;
 
+}}
 
-        if chain:
 
+</style>
 
 
-            records = (
+</head>
 
-                chain
 
-                .get("records",{})
 
-                .get("data",[])
+<body>
 
-            )
 
+<h1>
+PAN AI Trade Bridge
+</h1>
 
 
-            for item in records:
+<div class="card">
 
 
+<h2>
+NIFTY 50
+</h2>
 
-                if item.get("strikePrice") == atm:
 
+<h1>
+{data.get("price")}
+</h1>
 
 
+<hr>
 
-                    if "CE" in item:
 
+<h2>
+OPTION CHAIN
+</h2>
 
 
-                        ce_price = item["CE"].get(
+<p>
+ATM : {data.get("option_chain",{}).get("ATM")}
+</p>
 
-                            "lastPrice",0
 
-                        )
+<h3>
+CALL CE
+</h3>
 
 
+<p>
+Price :
+{data.get("option_chain",{}).get("CE",{}).get("price")}
+</p>
 
-                        ce_oi = item["CE"].get(
 
-                            "openInterest",0
+<h3>
+PUT PE
+</h3>
 
-                        )
 
+<p>
+Price :
+{data.get("option_chain",{}).get("PE",{}).get("price")}
+</p>
 
 
+<hr>
 
-                    if "PE" in item:
 
+<h2>
+AI SIGNAL :
+{data.get("signal")}
+</h2>
 
 
-                        pe_price = item["PE"].get(
+<p>
+Confidence :
+{data.get("confidence")}
+</p>
 
-                            "lastPrice",0
 
-                        )
+<p>
+Entry :
+{data.get("entry")}
+</p>
 
 
+<p>
+Stop Loss :
+{data.get("stoploss")}
+</p>
 
-                        pe_oi = item["PE"].get(
 
-                            "openInterest",0
+<p>
+Target :
+{data.get("target")}
+</p>
 
-                        )
 
 
+<button onclick="location.reload()">
 
-                    break
+Refresh
 
+</button>
 
 
+</div>
 
 
-    except Exception as e:
+</body>
 
+</html>
 
-        print(
 
-        "CHAIN ERROR:",
-
-        e
-
-        )
-
-
-
-
-
-
-
-    if ce_oi > 0:
-
-
-        pcr = round(
-
-            pe_oi / ce_oi,
-
-            2
-
-        )
-
-
-    else:
-
-
-        pcr = 0
-
-
-
-
-
-
-    if ce_oi == 0 and pe_oi == 0:
-
-
-        signal = "WAIT"
-
-        confidence = "0%"
-
-
-
-
-    elif pcr > 1.2:
-
-
-        signal = "BUY PE"
-
-        confidence = "75%"
-
-
-
-
-    elif pcr < 0.8:
-
-
-        signal = "BUY CE"
-
-        confidence = "75%"
-
-
-
-
-    else:
-
-
-        signal = "WAIT"
-
-        confidence = "50%"
-
-
-
-
-
-
-    if ce_price > 0:
-
-        ce_trend = "Active"
-
-
-    else:
-
-        ce_trend = "Weak"
-
-
-
-
-    if pe_price > 0:
-
-        pe_trend = "Active"
-
-
-    else:
-
-        pe_trend = "Weak"
-
-
-
-
-
-
-    return {
-
-
-
-        "index":
-
-        "NIFTY 50",
-
-
-
-        "price":
-
-        round(price,2),
-
-
-
-
-        "option_chain":{
-
-
-
-            "ATM":
-
-            atm,
-
-
-
-            "CE":{
-
-
-                "price":
-
-                ce_price,
-
-
-                "OI":
-
-                ce_oi,
-
-
-                "trend":
-
-                ce_trend
-
-
-            },
-
-
-
-            "PE":{
-
-
-                "price":
-
-                pe_price,
-
-
-                "OI":
-
-                pe_oi,
-
-
-                "trend":
-
-                pe_trend
-
-
-            },
-
-
-
-            "PCR":
-
-            pcr
-
-
-
-        },
-
-
-
-
-
-        "signal":
-
-        signal,
-
-
-
-        "confidence":
-
-        confidence,
-
-
-
-        "entry":
-
-        round(price,2),
-
-
-
-        "stoploss":
-
-        round(price-80,2),
-
-
-
-        "target":
-
-        round(price+120,2)
-
-
-    }
+"""
