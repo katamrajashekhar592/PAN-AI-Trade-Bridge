@@ -5,17 +5,16 @@
 <style>
 body{
 font-family:Arial;
-padding:30px;
 background:#111;
 color:white;
+text-align:center;
 }
-button{
-padding:15px;
-font-size:18px;
-}
-#result{
-margin-top:20px;
-font-size:18px;
+.card{
+background:#222;
+margin:50px auto;
+padding:30px;
+width:350px;
+border-radius:15px;
 }
 </style>
 </head>
@@ -24,24 +23,42 @@ font-size:18px;
 
 <h1>PAN AI Trade Bridge</h1>
 
-<button onclick="analyze()">Analyze NIFTY</button>
+<div class="card">
+<h2>NIFTY 50</h2>
 
-<pre id="result">Waiting...</pre>
+<h1 id="price">Loading...</h1>
+
+<p id="trend"></p>
+<p id="support"></p>
+<p id="resistance"></p>
+
+<h2 id="action"></h2>
+
+</div>
+
 
 <script>
 
-async function analyze(){
+fetch("/analyze")
+.then(r=>r.json())
+.then(data=>{
 
-let r = await fetch(
-"https://pan-ai-trade-bridge.onrender.com/analyze"
-);
+document.getElementById("price").innerHTML =
+data.price;
 
-let data = await r.json();
+document.getElementById("trend").innerHTML =
+data.trend;
 
-document.getElementById("result").innerHTML =
-JSON.stringify(data,null,2);
+document.getElementById("support").innerHTML =
+"Support: "+data.support;
 
-}
+document.getElementById("resistance").innerHTML =
+"Resistance: "+data.resistance;
+
+document.getElementById("action").innerHTML =
+data.action;
+
+});
 
 </script>
 
