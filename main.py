@@ -1,41 +1,27 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 import yfinance as yf
-from datetime import datetime
 
-app = FastAPI(title="PAN AI Trade Bridge")
+app = FastAPI()
 
+@app.get("/")
+def home():
+    return FileResponse("index.html")
 
 @app.get("/analyze")
 def analyze():
 
-    data = yf.download(
-        "^NSEI",
-        period="5d",
-        interval="15m",
-        progress=False
-    )
+    data = yf.Ticker("^NSEI")
 
-    latest = data.iloc[-1]
+    price = data.history(period="1d")
 
-    price = float(latest["Close"])
-    high = float(data["High"].max())
-    low = float(data["Low"].min())
-
-    if price > (high + low) / 2:
-        trend = "Bullish"
-        action = "BUY"
-    else:
-        trend = "Bearish"
-        action = "SELL"
+    last = float(price["Close"].iloc[-1])
 
     return {
         "index": "NIFTY50",
-        "live_price": round(price,2),
-        "day_high": round(high,2),
-        "day_low": round(low,2),
-        "trend": trend,
-        "action": action,
-        "support": round(low,2),
-        "resistance": round(high,2),
-        "updated": datetime.now().isoformat()
+        "price": last,
+        "trend": "Live AI analysis connected",
+        "support": last - 50,
+        "resistance": last + 50,
+        "action": "AI analysis pending"
     }
