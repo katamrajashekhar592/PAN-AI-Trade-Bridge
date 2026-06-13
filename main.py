@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
+import requests
 import yfinance as yf
+import math
 
 
 app = FastAPI()
@@ -12,133 +14,269 @@ def home():
 
 
 
+def get_option_chain():
+
+    url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
+
+
+    headers = {
+
+        "User-Agent":
+        "Mozilla/5.0",
+
+        "Accept-Language":
+        "en-US,en;q=0.9"
+
+    }
+
+
+    session = requests.Session()
+
+
+    session.get(
+        "https://www.nseindia.com",
+        headers=headers
+    )
+
+
+    data = session.get(
+        url,
+        headers=headers
+    ).json()
+
+
+
+    return data
+
+
+
+
 @app.get("/analyze")
 def analyze():
 
-    data = yf.Ticker("^NSEI")
 
-    df = data.history(period="6mo")
+    # NIFTY PRICE
 
+    nifty = yf.Ticker("^NSEI")
 
-    close = df["Close"]
-
-
-    last = float(close.iloc[-1])
-
-    previous = float(close.iloc[-2])
+    df = nifty.history(period="5d")
 
 
-    change = last - previous
-
-    percent = (change / previous) * 100
+    price = float(
+        df["Close"].iloc[-1]
+    )
 
 
 
-    ma20 = float(close.rolling(20).mean().iloc[-1])
+    # ATM STRIKE
 
-    ma50 = float(close.rolling(50).mean().iloc[-1])
-
-
-
-    # RSI
-
-    delta = close.diff()
-
-    gain = delta.where(delta > 0,0)
-
-    loss = -delta.where(delta < 0,0)
-
-
-    avg_gain = gain.rolling(14).mean()
-
-    avg_loss = loss.rolling(14).mean()
-
-
-    rs = avg_gain / avg_loss
-
-
-    rsi = 100 - (100/(1+rs))
-
-
-    rsi_value = float(rsi.iloc[-1])
+    atm = int(
+        round(price/50)*50
+    )
 
 
 
-    if last > ma20 and rsi_value > 50:
+    # OPTION DATA
 
-        trend="Bullish trend 📈"
-
-        action="BUY - momentum positive"
-
-        confidence=75
+    option = get_option_chain()
 
 
-    elif last < ma20 and rsi_value < 45:
 
-        trend="Bearish trend 📉"
+    records = option["records"]["data"]
 
-        action="SELL - weakness visible"
 
-        confidence=75
+
+    ce = {}
+
+    pe = {}
+
+
+
+    for item in records:
+
+
+        if item["strikePrice"] == atm:
+
+
+            ce = item.get("CE",{})
+
+            pe = item.get("PE",{})
+
+
+
+    ce_ltp = ce.get("lastPrice",0)
+
+    pe_ltp = pe.get("lastPrice",0)
+
+
+    ce_oi = ce.get("openInterest",0)
+
+    pe_oi = pe.get("openInterest",0)
+
+
+
+    if pe_oi !=0:
+
+        pcr = round(
+            ce_oi/pe_oi,
+            2
+        )
+
+    else:
+
+        pcr = 0
+
+
+
+
+    # OPTION AI LOGIC
+
+
+    if ce_oi > pe_oi and pcr > 1:
+
+
+        signal="BUY CE"
+
+        confidence=80
+
+
+        ce_trend="Strong"
+
+
+        pe_trend="Weak"
+
+
+
+    elif pe_oi > ce_oi and pcr < 1:
+
+
+        signal="BUY PE"
+
+        confidence=80
+
+
+        ce_trend="Weak"
+
+
+        pe_trend="Strong"
+
 
 
     else:
 
-        trend="Sideways market"
 
-        action="WAIT - mixed signals"
+        signal="WAIT"
+
 
         confidence=55
 
 
+        ce_trend="Neutral"
 
 
-    support = last - 100
-
-    resistance = last + 100
+        pe_trend="Neutral"
 
 
-    stoploss = last - 80
 
-    target = last + 120
+
+    if signal=="BUY CE":
+
+
+        entry=ce_ltp
+
+        stop=entry-20
+
+        target=entry+40
+
+
+
+    elif signal=="BUY PE":
+
+
+        entry=pe_ltp
+
+        stop=entry-20
+
+        target=entry+40
+
+
+
+    else:
+
+
+        entry=0
+
+        stop=0
+
+        target=0
+
+
 
 
 
     return {
 
 
-        "price":round(last,2),
-
-        "change":round(change,2),
-
-        "percent":round(percent,2),
+        "nifty":
+        round(price,2),
 
 
-        "trend":trend,
-
-        "market":"AI analysis active",
-
-
-        "rsi":round(rsi_value,2),
-
-        "ma20":round(ma20,2),
-
-        "ma50":round(ma50,2),
+        "atm":
+        atm,
 
 
-        "support":round(support,2),
 
-        "resistance":round(resistance,2),
-
-
-        "confidence":str(confidence)+"%",
+        "ce_price":
+        ce_ltp,
 
 
-        "stoploss":round(stoploss,2),
+        "pe_price":
+        pe_ltp,
 
-        "target":round(target,2),
 
 
-        "action":action
+        "ce_oi":
+        ce_oi,
+
+
+        "pe_oi":
+        pe_oi,
+
+
+
+        "pcr":
+        pcr,
+
+
+
+        "ce_trend":
+        ce_trend,
+
+
+        "pe_trend":
+        pe_trend,
+
+
+
+        "signal":
+        signal,
+
+
+
+        "confidence":
+        str(confidence)+"%",
+
+
+
+        "entry":
+        entry,
+
+
+        "stoploss":
+        stop,
+
+
+        "target":
+        target
 
     }
