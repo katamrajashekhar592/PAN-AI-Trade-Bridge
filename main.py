@@ -27,7 +27,6 @@ def get_option_chain():
         "application/json"
     }
 
-
     session = requests.Session()
 
     session.get(
@@ -35,22 +34,17 @@ def get_option_chain():
         headers=headers
     )
 
-
-    r = session.get(
+    response = session.get(
         url,
         headers=headers
     )
 
-
-    return r.json()
+    return response.json()
 
 
 
 @app.get("/analyze")
 def analyze():
-
-
-    # NIFTY DATA
 
     nifty = yf.Ticker("^NSEI")
 
@@ -75,19 +69,28 @@ def analyze():
 
 
 
-    # OPTION CHAIN
+    atm = atm_strike(last)
+
+
+    ce_price = 0
+    pe_price = 0
+
+    ce_oi = 0
+    pe_oi = 0
+
+    ce_trend = "No Data"
+    pe_trend = "No Data"
+
+    pcr = 0
+
+
 
     try:
-
 
         option = get_option_chain()
 
 
         records = option["records"]["data"]
-
-
-        atm = atm_strike(last)
-
 
 
         selected = None
@@ -98,89 +101,91 @@ def analyze():
             if item["strikePrice"] == atm:
 
                 selected = item
+
                 break
 
 
 
-        ce = selected["CE"]
-
-        pe = selected["PE"]
+        if selected:
 
 
+            ce = selected.get("CE",{})
 
-        ce_price = ce["lastPrice"]
-
-        pe_price = pe["lastPrice"]
-
-
-        ce_oi = ce["openInterest"]
-
-        pe_oi = pe["openInterest"]
+            pe = selected.get("PE",{})
 
 
+            ce_price = ce.get(
+                "lastPrice",
+                0
+            )
 
-        pcr = round(
-            pe_oi / ce_oi,
-            2
-        )
+
+            pe_price = pe.get(
+                "lastPrice",
+                0
+            )
 
 
-        if ce_oi > pe_oi:
+            ce_oi = ce.get(
+                "openInterest",
+                0
+            )
 
-            option_bias = "CE Strong"
 
-        else:
+            pe_oi = pe.get(
+                "openInterest",
+                0
+            )
 
-            option_bias = "PE Strong"
+
+
+            if ce_oi > pe_oi:
+
+                ce_trend="CE Strong"
+
+            else:
+
+                pe_trend="PE Strong"
+
+
+
+            if ce_oi != 0:
+
+                pcr = round(
+                    pe_oi / ce_oi,
+                    2
+                )
 
 
 
     except Exception as e:
 
-
-        atm = atm_strike(last)
-
-        ce_price = 0
-
-        pe_price = 0
-
-        ce_oi = 0
-
-        pe_oi = 0
-
-        pcr = 0
-
-        option_bias = "No Data"
+        pass
 
 
 
-    # AI SIGNAL
+    # AI LOGIC
 
 
-    if pcr > 1 and change > 0:
+    if change > 0 and pcr > 1:
+
+        signal="BUY CE"
+
+        confidence=75
 
 
-        signal = "BUY CE"
+    elif change < 0 and pcr < 1:
 
-        confidence = 75
+        signal="BUY PE"
 
-
-
-    elif pcr < 0.8 and change < 0:
-
-
-        signal = "BUY PE"
-
-        confidence = 75
-
+        confidence=75
 
 
     else:
 
+        signal="WAIT"
 
-        signal = "WAIT"
-
-        confidence = 55
+        confidence=55
 
 
 
@@ -188,68 +193,82 @@ def analyze():
     return {
 
 
-        "index":"NIFTY 50",
+        "index":
+        "NIFTY 50",
 
 
-        "price":round(last,2),
+        "price":
+        round(last,2),
 
 
-        "change":round(change,2),
+        "change":
+        round(change,2),
 
 
-        "percent":round(percent,2),
+        "percent":
+        round(percent,2),
 
 
 
         "option_chain":{
 
 
-            "ATM":atm,
+            "ATM":
+            atm,
 
 
             "CE":{
 
-                "price":ce_price,
+                "price":
+                ce_price,
 
-                "OI":ce_oi,
+                "OI":
+                ce_oi,
 
-                "trend":option_bias
+                "trend":
+                ce_trend
 
             },
 
 
             "PE":{
 
+                "price":
+                pe_price,
 
-                "price":pe_price,
+                "OI":
+                pe_oi,
 
-                "OI":pe_oi,
-
-                "trend":option_bias
+                "trend":
+                pe_trend
 
             },
 
 
-            "PCR":pcr
+            "PCR":
+            pcr
 
         },
 
 
-        "signal":signal,
+
+        "signal":
+        signal,
 
 
-        "confidence":str(confidence)+"%",
+        "confidence":
+        str(confidence)+"%",
 
 
-
-        "entry":round(last,2),
-
-
-        "stoploss":round(last-80,2),
+        "entry":
+        round(last,2),
 
 
-        "target":round(last+120,2)
+        "stoploss":
+        round(last-80,2),
 
 
+        "target":
+        round(last+120,2)
 
     }
