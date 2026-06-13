@@ -1,15 +1,17 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 import yfinance as yf
-import requests
 
 
 app = FastAPI()
 
 
+
 @app.get("/")
 def home():
+
     return FileResponse("index.html")
+
 
 
 
@@ -20,66 +22,147 @@ def atm_strike(price):
 
 
 
-def get_option_chain():
 
-    url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
+def get_option_data(atm):
 
 
-    headers = {
+    try:
 
-        "User-Agent":
-        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36",
 
-        "Accept":
-        "application/json,text/plain,*/*",
+        nifty = yf.Ticker("^NSEI")
 
-        "Accept-Language":
-        "en-US,en;q=0.9",
 
-        "Referer":
-        "https://www.nseindia.com/option-chain",
+        expiry = nifty.options[0]
 
-        "Connection":
-        "keep-alive"
-    }
+
+        chain = nifty.option_chain(expiry)
 
 
 
-    session = requests.Session()
+        calls = chain.calls
+
+        puts = chain.puts
 
 
 
-    session.get(
-
-        "https://www.nseindia.com",
-
-        headers=headers,
-
-        timeout=20
-
-    )
+        ce_row = calls.iloc[
+            (calls["strike"] - atm)
+            .abs()
+            .argsort()[:1]
+        ]
 
 
 
-    response = session.get(
-
-        url,
-
-        headers=headers,
-
-        timeout=20
-
-    )
+        pe_row = puts.iloc[
+            (puts["strike"] - atm)
+            .abs()
+            .argsort()[:1]
+        ]
 
 
 
-    if response.status_code != 200:
+        ce_price = float(
+            ce_row["lastPrice"].values[0]
+        )
 
-        raise Exception("NSE blocked request")
+
+        ce_oi = int(
+            ce_row["openInterest"].values[0]
+        )
 
 
 
-    return response.json()
+        pe_price = float(
+            pe_row["lastPrice"].values[0]
+        )
+
+
+        pe_oi = int(
+            pe_row["openInterest"].values[0]
+        )
+
+
+
+        if ce_oi > 0:
+
+
+            pcr = round(
+                pe_oi / ce_oi,
+                2
+            )
+
+
+        else:
+
+            pcr = 0
+
+
+
+        if ce_oi > pe_oi:
+
+
+            ce_trend = "CE Strong"
+
+            pe_trend = "Weak"
+
+
+        else:
+
+
+            ce_trend = "Weak"
+
+            pe_trend = "PE Strong"
+
+
+
+        return {
+
+
+            "ce_price": ce_price,
+
+            "ce_oi": ce_oi,
+
+            "pe_price": pe_price,
+
+            "pe_oi": pe_oi,
+
+            "pcr": pcr,
+
+            "ce_trend": ce_trend,
+
+            "pe_trend": pe_trend
+
+        }
+
+
+
+    except Exception as e:
+
+
+        print(e)
+
+
+
+        return {
+
+
+            "ce_price":0,
+
+            "ce_oi":0,
+
+            "pe_price":0,
+
+            "pe_oi":0,
+
+            "pcr":0,
+
+            "ce_trend":"No Data",
+
+            "pe_trend":"No Data"
+
+        }
+
+
 
 
 
@@ -93,7 +176,10 @@ def analyze():
     nifty = yf.Ticker("^NSEI")
 
 
-    data = nifty.history(period="5d")
+
+    data = nifty.history(
+        period="5d"
+    )
 
 
 
@@ -117,126 +203,27 @@ def analyze():
 
 
 
-    ce_price = 0
-    pe_price = 0
+    option = get_option_data(atm)
 
-    ce_oi = 0
-    pe_oi = 0
 
 
+    ce_price = option["ce_price"]
 
-    ce_trend = "No Data"
-    pe_trend = "No Data"
+    pe_price = option["pe_price"]
 
+    ce_oi = option["ce_oi"]
 
+    pe_oi = option["pe_oi"]
 
-    pcr = 0
+    pcr = option["pcr"]
 
 
 
-    try:
+    # AI SIGNAL
 
-
-        chain = get_option_chain()
-
-
-
-        records = chain.get(
-            "records",
-            {}
-        ).get(
-            "data",
-            []
-        )
-
-
-
-        for row in records:
-
-
-
-            if row.get("strikePrice") == atm:
-
-
-
-                if "CE" in row:
-
-
-                    ce = row["CE"]
-
-
-                    ce_price = ce.get(
-                        "lastPrice",
-                        0
-                    )
-
-
-                    ce_oi = ce.get(
-                        "openInterest",
-                        0
-                    )
-
-
-
-                if "PE" in row:
-
-
-                    pe = row["PE"]
-
-
-                    pe_price = pe.get(
-                        "lastPrice",
-                        0
-                    )
-
-
-                    pe_oi = pe.get(
-                        "openInterest",
-                        0
-                    )
-
-
-
-                break
-
-
-
-
-        if ce_oi > pe_oi:
-
-            ce_trend = "CE Strong"
-
-
-        elif pe_oi > ce_oi:
-
-            pe_trend = "PE Strong"
-
-
-
-
-        if ce_oi > 0:
-
-
-            pcr = round(
-                pe_oi / ce_oi,
-                2
-            )
-
-
-
-    except Exception as e:
-
-
-        print(e)
-
-
-
-
-    # AI LOGIC
 
 
     if ce_oi == 0 or pe_oi == 0:
-
 
 
         signal = "WAIT"
@@ -248,7 +235,6 @@ def analyze():
     elif change > 0 and pcr < 1:
 
 
-
         signal = "BUY CE"
 
         confidence = 75
@@ -256,7 +242,6 @@ def analyze():
 
 
     elif change < 0 and pcr > 1:
-
 
 
         signal = "BUY PE"
@@ -268,7 +253,6 @@ def analyze():
     else:
 
 
-
         signal = "WAIT"
 
         confidence = 55
@@ -277,18 +261,19 @@ def analyze():
 
 
 
+
     return {
 
 
-
         "index":
+
         "NIFTY 50",
 
 
 
         "price":
-        round(last,2),
 
+        round(last,2),
 
 
 
@@ -296,6 +281,7 @@ def analyze():
 
 
             "ATM":
+
             atm,
 
 
@@ -304,15 +290,18 @@ def analyze():
 
 
                 "price":
+
                 ce_price,
 
 
                 "OI":
+
                 ce_oi,
 
 
                 "trend":
-                ce_trend
+
+                option["ce_trend"]
 
             },
 
@@ -322,21 +311,25 @@ def analyze():
 
 
                 "price":
+
                 pe_price,
 
 
                 "OI":
+
                 pe_oi,
 
 
                 "trend":
-                pe_trend
+
+                option["pe_trend"]
 
             },
 
 
 
             "PCR":
+
             pcr
 
         },
@@ -344,26 +337,31 @@ def analyze():
 
 
         "signal":
+
         signal,
 
 
 
         "confidence":
+
         str(confidence)+"%",
 
 
 
         "entry":
+
         round(last,2),
 
 
 
         "stoploss":
+
         round(last-80,2),
 
 
 
         "target":
+
         round(last+120,2)
 
     }
