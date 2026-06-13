@@ -17,21 +17,18 @@ def home():
 
 
 
-# -----------------------------
-# NIFTY PRICE
-# -----------------------------
 
 def get_nifty_price():
 
     try:
 
-        data = yf.Ticker("^NSEI").history(
-            period="2d"
-        )
+        data = yf.Ticker("^NSEI").history(period="2d")
+
 
         return float(
             data["Close"].iloc[-1]
         )
+
 
     except Exception as e:
 
@@ -43,10 +40,6 @@ def get_nifty_price():
 
 
 
-# -----------------------------
-# ATM STRIKE
-# -----------------------------
-
 def get_atm(price):
 
     return round(price/50)*50
@@ -54,10 +47,6 @@ def get_atm(price):
 
 
 
-
-# -----------------------------
-# NSE OPTION CHAIN
-# -----------------------------
 
 def get_option_chain():
 
@@ -72,66 +61,85 @@ def get_option_chain():
 
 
             "User-Agent":
-            "Mozilla/5.0 (Linux; Android 10)",
+
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
 
 
             "Accept":
-            "application/json",
+
+            "application/json,text/plain,*/*",
 
 
             "Accept-Language":
+
             "en-US,en;q=0.9",
 
 
             "Referer":
+
             "https://www.nseindia.com/option-chain",
 
 
-            "Origin":
-            "https://www.nseindia.com"
+            "Connection":
+
+            "keep-alive"
+
 
         }
 
 
 
-
-        session.get(
+        home = session.get(
 
             "https://www.nseindia.com",
 
             headers=headers,
 
-            timeout=15
-
-        )
-
-
-
-        time.sleep(3)
-
-
-
-
-        response = session.get(
-
-
-            "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY",
-
-
-            headers=headers,
-
-
-            timeout=15
+            timeout=20
 
         )
 
 
 
         print(
-            "NSE STATUS:",
-            response.status_code
+        "HOME STATUS:",
+        home.status_code
         )
 
+
+
+        time.sleep(2)
+
+
+
+
+        url = (
+
+        "https://www.nseindia.com/api/"
+        "option-chain-indices?symbol=NIFTY"
+
+        )
+
+
+
+        response = session.get(
+
+            url,
+
+            headers=headers,
+
+            timeout=20
+
+        )
+
+
+
+        print(
+
+        "NSE STATUS:",
+        response.status_code
+
+        )
 
 
 
@@ -139,7 +147,7 @@ def get_option_chain():
 
 
             print(
-                "OPTION DATA RECEIVED"
+            "OPTION DATA RECEIVED"
             )
 
 
@@ -147,14 +155,15 @@ def get_option_chain():
 
 
 
+        else:
 
-        print(
+
+            print(
             "NSE BLOCKED"
-        )
+            )
 
 
-        return None
-
+            return None
 
 
 
@@ -162,8 +171,10 @@ def get_option_chain():
 
 
         print(
-            "OPTION ERROR:",
-            e
+
+        "OPTION ERROR:",
+        e
+
         )
 
 
@@ -174,10 +185,6 @@ def get_option_chain():
 
 
 
-
-# -----------------------------
-# ANALYSIS
-# -----------------------------
 
 
 @app.get("/analyze")
@@ -193,6 +200,7 @@ def analyze():
 
 
 
+
     ce_price = 0
 
     pe_price = 0
@@ -204,19 +212,14 @@ def analyze():
 
 
 
-    ce_trend = "No Data"
 
-    pe_trend = "No Data"
+    chain = get_option_chain()
+
 
 
 
 
     try:
-
-
-
-        chain = get_option_chain()
-
 
 
         if chain:
@@ -235,12 +238,12 @@ def analyze():
 
 
 
-
             for item in records:
 
 
 
                 if item.get("strikePrice") == atm:
+
 
 
 
@@ -250,18 +253,18 @@ def analyze():
 
                         ce_price = item["CE"].get(
 
-                            "lastPrice",
-                            0
+                            "lastPrice",0
 
                         )
+
 
 
                         ce_oi = item["CE"].get(
 
-                            "openInterest",
-                            0
+                            "openInterest",0
 
                         )
+
 
 
 
@@ -271,16 +274,15 @@ def analyze():
 
                         pe_price = item["PE"].get(
 
-                            "lastPrice",
-                            0
+                            "lastPrice",0
 
                         )
 
 
+
                         pe_oi = item["PE"].get(
 
-                            "openInterest",
-                            0
+                            "openInterest",0
 
                         )
 
@@ -296,42 +298,17 @@ def analyze():
 
 
         print(
-            "ANALYSIS ERROR:",
-            e
+
+        "CHAIN ERROR:",
+
+        e
+
         )
 
 
 
 
 
-
-    # TREND
-
-
-    if ce_oi > 0:
-
-        ce_trend = "Strong"
-
-    else:
-
-        ce_trend = "Weak"
-
-
-
-
-    if pe_oi > 0:
-
-        pe_trend = "Strong"
-
-    else:
-
-        pe_trend = "Weak"
-
-
-
-
-
-    # PCR
 
 
     if ce_oi > 0:
@@ -345,6 +322,7 @@ def analyze():
 
         )
 
+
     else:
 
 
@@ -355,16 +333,13 @@ def analyze():
 
 
 
-
-    # SIGNAL LOGIC
-
-
     if ce_oi == 0 and pe_oi == 0:
 
 
         signal = "WAIT"
 
         confidence = "0%"
+
 
 
 
@@ -377,12 +352,14 @@ def analyze():
 
 
 
+
     elif pcr < 0.8:
 
 
         signal = "BUY CE"
 
         confidence = "75%"
+
 
 
 
@@ -398,17 +375,44 @@ def analyze():
 
 
 
+    if ce_price > 0:
+
+        ce_trend = "Active"
+
+
+    else:
+
+        ce_trend = "Weak"
+
+
+
+
+    if pe_price > 0:
+
+        pe_trend = "Active"
+
+
+    else:
+
+        pe_trend = "Weak"
+
+
+
+
+
 
     return {
 
 
 
         "index":
+
         "NIFTY 50",
 
 
 
         "price":
+
         round(price,2),
 
 
@@ -417,7 +421,9 @@ def analyze():
         "option_chain":{
 
 
+
             "ATM":
+
             atm,
 
 
@@ -426,15 +432,19 @@ def analyze():
 
 
                 "price":
+
                 ce_price,
 
 
                 "OI":
+
                 ce_oi,
 
 
                 "trend":
+
                 ce_trend
+
 
             },
 
@@ -444,22 +454,28 @@ def analyze():
 
 
                 "price":
+
                 pe_price,
 
 
                 "OI":
+
                 pe_oi,
 
 
                 "trend":
+
                 pe_trend
+
 
             },
 
 
 
             "PCR":
+
             pcr
+
 
 
         },
@@ -467,32 +483,34 @@ def analyze():
 
 
 
+
         "signal":
+
         signal,
 
 
 
         "confidence":
+
         confidence,
 
 
 
-
         "entry":
+
         round(price,2),
 
 
 
-
         "stoploss":
+
         round(price-80,2),
 
 
 
-
         "target":
-        round(price+120,2)
 
+        round(price+120,2)
 
 
     }
