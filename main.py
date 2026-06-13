@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 import yfinance as yf
-import pandas as pd
 
 
 app = FastAPI()
@@ -16,16 +15,12 @@ def home():
 @app.get("/analyze")
 def analyze():
 
-
     data = yf.Ticker("^NSEI")
 
-
-    price_data = data.history(period="1mo")
-
+    df = data.history(period="6mo")
 
 
-    close = price_data["Close"]
-
+    close = df["Close"]
 
 
     last = float(close.iloc[-1])
@@ -35,34 +30,28 @@ def analyze():
 
     change = last - previous
 
-
     percent = (change / previous) * 100
 
 
 
-    # Moving averages
+    ma20 = float(close.rolling(20).mean().iloc[-1])
 
-    ma20 = close.rolling(20).mean().iloc[-1]
-
-    ma50 = close.rolling(50).mean().iloc[-1]
+    ma50 = float(close.rolling(50).mean().iloc[-1])
 
 
 
-    # RSI calculation
+    # RSI
 
     delta = close.diff()
 
+    gain = delta.where(delta > 0,0)
 
-    gain = delta.clip(lower=0)
-
-    loss = -delta.clip(upper=0)
-
+    loss = -delta.where(delta < 0,0)
 
 
     avg_gain = gain.rolling(14).mean()
 
     avg_loss = loss.rolling(14).mean()
-
 
 
     rs = avg_gain / avg_loss
@@ -75,125 +64,77 @@ def analyze():
 
 
 
-    # Trend engine
+    if last > ma20 and rsi_value > 50:
+
+        trend="Bullish trend 📈"
+
+        action="BUY - momentum positive"
+
+        confidence=75
 
 
-    confidence = 50
+    elif last < ma20 and rsi_value < 45:
 
+        trend="Bearish trend 📉"
 
+        action="SELL - weakness visible"
 
-    if last > ma20 and last > ma50 and rsi_value > 50:
-
-
-        trend = "Bullish trend 📈"
-
-        action = "BUY - momentum strong"
-
-        confidence += 25
-
-
-
-    elif last < ma20 and last < ma50 and rsi_value < 45:
-
-
-        trend = "Bearish trend 📉"
-
-        action = "SELL - weakness"
-
-        confidence += 25
-
+        confidence=75
 
 
     else:
 
+        trend="Sideways market"
 
-        trend = "Sideways market"
+        action="WAIT - mixed signals"
 
-        action = "WAIT - mixed signals"
-
-
-
-
-    # VWAP
-
-
-    vwap = (
-        price_data["Close"] * price_data["Volume"]
-    ).sum() / price_data["Volume"].sum()
-
-
-
-    if last > vwap:
-
-        market = "Above VWAP - buyers active"
-
-    else:
-
-        market = "Below VWAP - sellers active"
+        confidence=55
 
 
 
 
-    # Levels
+    support = last - 100
+
+    resistance = last + 100
 
 
-    support = last - (last*0.012)
+    stoploss = last - 80
 
-    resistance = last + (last*0.012)
-
-
-    stoploss = last - (last*0.004)
-
-
-    target = last + (last*0.008)
-
+    target = last + 120
 
 
 
     return {
 
 
-        "index":"NIFTY50",
-
-
         "price":round(last,2),
 
-
         "change":round(change,2),
-
 
         "percent":round(percent,2),
 
 
         "trend":trend,
 
-
-        "market":market,
+        "market":"AI analysis active",
 
 
         "rsi":round(rsi_value,2),
 
-
         "ma20":round(ma20,2),
-
 
         "ma50":round(ma50,2),
 
 
-        "vwap":round(vwap,2),
-
-
         "support":round(support,2),
-
 
         "resistance":round(resistance,2),
 
 
-        "confidence":str(min(confidence,95))+"%",
+        "confidence":str(confidence)+"%",
 
 
         "stoploss":round(stoploss,2),
-
 
         "target":round(target,2),
 
