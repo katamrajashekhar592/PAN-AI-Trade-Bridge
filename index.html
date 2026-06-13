@@ -1,107 +1,134 @@
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
-import yfinance as yf
+<!DOCTYPE html>
+<html>
+<head>
 
-app = FastAPI()
+<title>PAN AI Trade Bridge</title>
 
+<style>
 
-@app.get("/")
-def home():
-    return FileResponse("index.html")
+body{
+font-family:Arial;
+background:#111;
+color:white;
+text-align:center;
+}
 
+.card{
 
-@app.get("/analyze")
-def analyze():
+background:#222;
+margin:50px auto;
+padding:30px;
+width:350px;
+border-radius:15px;
 
-    data = yf.Ticker("^NSEI")
+}
 
-    price_data = data.history(period="5d")
+</style>
 
-
-    last = float(price_data["Close"].iloc[-1])
-
-    previous = float(price_data["Close"].iloc[-2])
-
-
-    change = last - previous
-
-    percent = (change / previous) * 100
-
-
-    # Trend logic
-
-    if change > 0:
-
-        trend = "Bullish trend 📈"
-
-        action = "BUY bias - momentum positive"
+</head>
 
 
-        confidence = 70
+<body>
 
 
-    elif change < 0:
-
-        trend = "Bearish trend 📉"
-
-        action = "SELL bias - weakness visible"
+<h1>PAN AI Trade Bridge</h1>
 
 
-        confidence = 65
+<div class="card">
+
+<h2>NIFTY 50</h2>
 
 
-    else:
-
-        trend = "Sideways market"
-
-        action = "WAIT - no clear direction"
+<h1 id="price">Loading...</h1>
 
 
-        confidence = 50
+<p id="change"></p>
+
+<p id="percent"></p>
+
+<p id="trend"></p>
+
+<p id="support"></p>
+
+<p id="resistance"></p>
+
+<p id="confidence"></p>
+
+<p id="stoploss"></p>
+
+<p id="target"></p>
 
 
-
-    # Levels
-
-    support = last - 50
-
-    resistance = last + 50
+<h2 id="action"></h2>
 
 
-    stoploss = last - 80
-
-    target = last + 120
+</div>
 
 
 
-    return {
+<script>
 
 
-        "index": "NIFTY50",
+fetch("/analyze")
 
-        "price": round(last,2),
+.then(response=>response.json())
 
-        "change": round(change,2),
-
-        "percent": round(percent,2),
+.then(data=>{
 
 
-        "trend": trend,
+document.getElementById("price").innerHTML =
+data.price;
 
 
-        "support": round(support,2),
-
-        "resistance": round(resistance,2),
-
-
-        "confidence": str(confidence)+"%",
+document.getElementById("change").innerHTML =
+"Change: " + data.change;
 
 
-        "stoploss": round(stoploss,2),
+document.getElementById("percent").innerHTML =
+"Percent: " + data.percent + "%";
 
-        "target": round(target,2),
+
+document.getElementById("trend").innerHTML =
+data.trend;
 
 
-        "action": action
+document.getElementById("support").innerHTML =
+"Support: " + data.support;
 
-    }
+
+document.getElementById("resistance").innerHTML =
+"Resistance: " + data.resistance;
+
+
+document.getElementById("confidence").innerHTML =
+"AI Confidence: " + data.confidence;
+
+
+document.getElementById("stoploss").innerHTML =
+"Stop Loss: " + data.stoploss;
+
+
+document.getElementById("target").innerHTML =
+"Target: " + data.target;
+
+
+document.getElementById("action").innerHTML =
+data.action;
+
+
+})
+
+
+.catch(error=>{
+
+document.getElementById("action").innerHTML =
+"Server error";
+
+});
+
+
+</script>
+
+
+</body>
+</html>
