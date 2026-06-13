@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>PAN AI Trade Bridge</title>
+
 <style>
+
 body{
 font-family:Arial;
 background:#111;
 color:white;
 text-align:center;
 }
+
 .card{
 background:#222;
 margin:50px auto;
@@ -16,51 +20,94 @@ padding:30px;
 width:350px;
 border-radius:15px;
 }
+
 </style>
+
 </head>
+
 
 <body>
 
+
 <h1>PAN AI Trade Bridge</h1>
 
+
 <div class="card">
+
 <h2>NIFTY 50</h2>
+
 
 <h1 id="price">Loading...</h1>
 
+
 <p id="trend"></p>
+
 <p id="support"></p>
+
 <p id="resistance"></p>
 
+
+<p id="confidence"></p>
+
+<p id="stoploss"></p>
+
+<p id="target"></p>
+
+
 <h2 id="action"></h2>
+
 
 </div>
 
 
+
 <script>
 
+
 fetch("/analyze")
+
 .then(r=>r.json())
+
 .then(data=>{
+
 
 document.getElementById("price").innerHTML =
 data.price;
 
+
 document.getElementById("trend").innerHTML =
 data.trend;
+
 
 document.getElementById("support").innerHTML =
 "Support: "+data.support;
 
+
 document.getElementById("resistance").innerHTML =
 "Resistance: "+data.resistance;
+
+
+document.getElementById("confidence").innerHTML =
+"AI Confidence: "+data.confidence+"%";
+
+
+document.getElementById("stoploss").innerHTML =
+"Stop Loss: "+data.stop_loss;
+
+
+document.getElementById("target").innerHTML =
+"Target: "+data.target;
+
 
 document.getElementById("action").innerHTML =
 data.action;
 
+
 });
 
+
 </script>
+
 
 </body>
 </html>
